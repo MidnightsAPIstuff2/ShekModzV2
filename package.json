@@ -1,0 +1,9 @@
+{
+  "name": "shek-modz",
+  "version": "2.1.0",
+  "private": true,
+  "main": "server.js",
+  "engines": { "node": ">=20" },
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "@libsql/client": "^0.14.0" }
+}
