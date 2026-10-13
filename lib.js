@@ -4,6 +4,9 @@ const { createClient } = require('@libsql/client');
 
 const SESSION_TTL_S = 60 * 60 * 24 * 7; // 7 days
 const STATUSES = ['Tested & Working', 'Not Tested', 'Not Working'];
+const THEMES = ['summer', 'fall', 'winter', 'spring'];
+const ANNOUNCE_TYPES = ['popup', 'bar'];
+const ANNOUNCE_MAX = 500;
 
 /* ---------- Database (libSQL: Turso in production, a local file in dev) ---------- */
 let client;
@@ -17,6 +20,7 @@ function getDb() {
   }
   if (!ready) {
     ready = (async () => {
+      await client.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
       await client.execute(`CREATE TABLE IF NOT EXISTS posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -144,6 +148,53 @@ async function handleApi(req, res) {
 
   if (pathname === '/api/logout' && method === 'POST') {
     return send(res, 200, { admin: false }, { 'Set-Cookie': `shek_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure}` });
+  }
+
+  if (pathname === '/api/theme' && method === 'GET') {
+    const db = await getDb();
+    const r = await db.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['theme'] });
+    const t = r.rows[0] && THEMES.includes(r.rows[0].value) ? r.rows[0].value : 'summer';
+    return send(res, 200, { theme: t, themes: THEMES });
+  }
+
+  if (pathname === '/api/theme' && method === 'PUT') {
+    if (!isAdmin(req)) return send(res, 401, { error: 'Admin login required.' });
+    const origin = req.headers.origin;
+    if (origin) { let host; try { host = new URL(origin).host; } catch { host = ''; } if (host !== req.headers.host) return send(res, 403, { error: 'Bad origin.' }); }
+    let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+    if (!THEMES.includes(body.theme)) return send(res, 400, { error: 'Unknown theme.' });
+    const db = await getDb();
+    await db.execute({ sql: 'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', args: ['theme', body.theme] });
+    return send(res, 200, { theme: body.theme });
+  }
+
+  if (pathname === '/api/announcement' && method === 'GET') {
+    const db = await getDb();
+    const r = await db.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['announcement'] });
+    let a = null;
+    try { a = r.rows[0] ? JSON.parse(r.rows[0].value) : null; } catch { a = null; }
+    if (!a || !ANNOUNCE_TYPES.includes(a.type) || typeof a.message !== 'string' || !a.message) return send(res, 200, { active: false });
+    return send(res, 200, { active: true, id: String(a.id), type: a.type, message: a.message });
+  }
+
+  if (pathname === '/api/announcement' && (method === 'PUT' || method === 'DELETE')) {
+    if (!isAdmin(req)) return send(res, 401, { error: 'Admin login required.' });
+    const origin = req.headers.origin;
+    if (origin) { let host; try { host = new URL(origin).host; } catch { host = ''; } if (host !== req.headers.host) return send(res, 403, { error: 'Bad origin.' }); }
+    const db = await getDb();
+    if (method === 'DELETE') {
+      await db.execute({ sql: 'DELETE FROM settings WHERE key = ?', args: ['announcement'] });
+      return send(res, 200, { active: false });
+    }
+    let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+    const type = typeof body.type === 'string' ? body.type : '';
+    const message = typeof body.message === 'string' ? body.message.trim().slice(0, ANNOUNCE_MAX) : '';
+    if (!ANNOUNCE_TYPES.includes(type)) return send(res, 400, { error: 'Type must be "popup" or "bar".' });
+    if (!message) return send(res, 400, { error: 'Write an announcement first.' });
+    // a fresh id on every publish, so a pop-up shows again to people who closed the previous one
+    const a = { id: Date.now().toString(36) + crypto.randomBytes(3).toString('hex'), type, message };
+    await db.execute({ sql: 'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', args: ['announcement', JSON.stringify(a)] });
+    return send(res, 200, { active: true, ...a });
   }
 
   if (pathname === '/api/posts' && method === 'GET') {
