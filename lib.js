@@ -123,7 +123,11 @@ const rowToPost = (r) => ({ id: Number(r.id), title: r.title, author: r.author, 
 /* ---------- API handler ---------- */
 async function handleApi(req, res) {
   const url = new URL(req.url, 'http://localhost');
-  const pathname = url.pathname.replace(/\/+$/, '');
+  // On Vercel the rewrite sends /api/<route> to this function with ?route=<route>,
+  // so the original path is recovered from there (locally it's just the URL path).
+  let route = req.query && req.query.route !== undefined ? req.query.route : url.searchParams.get('route');
+  if (Array.isArray(route)) route = route.join('/');
+  const pathname = (route !== null && route !== undefined ? '/api/' + route : url.pathname).replace(/\/+$/, '');
   const method = req.method;
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
   const secure = process.env.VERCEL || process.env.NODE_ENV === 'production' ? '; Secure' : '';
