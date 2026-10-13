@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shek Modz</title>
+    <script src="/theme.js"></script>
+    <script src="/announce.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script>
@@ -11,10 +13,11 @@
             theme: {
                 extend: {
                     colors: {
-                        white: '#22ff66',
-                        dark: '#020a04',
+                        white: 'rgb(var(--accent-rgb) / <alpha-value>)',
+                        soft: 'rgb(var(--soft-rgb) / <alpha-value>)',
+                        dark: 'var(--bg2)',
                         cardDark: '#0d0d0e',
-                        borderGlow: 'rgba(34, 255, 102, 0.25)',
+                        borderGlow: 'rgba(var(--accent-rgb)/0.25)',
                     },
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
@@ -28,52 +31,52 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 
         body {
-            background-color: #010502;
-            color: #22ff66;
+            background-color: var(--bg);
+            color: var(--accent);
             font-family: 'Inter', sans-serif;
             overflow-x: hidden;
         }
 
         /* Heavy visual effects */
         .glow-heavy {
-            box-shadow: 0 0 25px rgba(34, 255, 102, 0.45), inset 0 0 15px rgba(34, 255, 102, 0.2);
+            box-shadow: 0 0 25px rgba(var(--accent-rgb)/0.45), inset 0 0 15px rgba(var(--accent-rgb)/0.2);
         }
 
         .glow-text {
-            text-shadow: 0 0 12px rgba(34, 255, 102, 0.8), 0 0 25px rgba(34, 255, 102, 0.4);
+            text-shadow: 0 0 12px rgba(var(--accent-rgb)/0.8), 0 0 25px rgba(var(--accent-rgb)/0.4);
         }
 
         .glow-box-sm {
-            box-shadow: 0 0 10px rgba(34, 255, 102, 0.2);
+            box-shadow: 0 0 10px rgba(var(--accent-rgb)/0.2);
         }
 
         .glow-box-sm:hover {
-            box-shadow: 0 0 20px rgba(34, 255, 102, 0.6);
-            border-color: #22ff66;
+            box-shadow: 0 0 20px rgba(var(--accent-rgb)/0.6);
+            border-color: var(--accent);
         }
 
         .chrome-gradient {
-            background: linear-gradient(135deg, #22ff66 0%, #14a83c 50%, #0b5a20 75%, #22ff66 100%);
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-mid) 50%, var(--accent-dark) 75%, var(--accent) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
         .chrome-bg {
-            background: linear-gradient(135deg, #22ff66 0%, #12902f 50%, #04200c 100%);
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-mid) 50%, var(--accent-dark) 100%);
         }
 
         .glass-panel {
             background: rgba(15, 15, 18, 0.75);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(34, 255, 102, 0.15);
+            border: 1px solid rgba(var(--accent-rgb)/0.15);
         }
 
         .scanline {
             background: linear-gradient(
                 to bottom,
-                rgba(34, 255, 102,0),
-                rgba(34, 255, 102,0) 50%,
+                rgba(var(--accent-rgb)/0),
+                rgba(var(--accent-rgb)/0) 50%,
                 rgba(0, 0, 0, 0.4) 50%,
                 rgba(0, 0, 0, 0.4)
             );
@@ -83,8 +86,8 @@
         .grid-bg {
             background-size: 40px 40px;
             background-image: 
-                linear-gradient(to right, rgba(34, 255, 102, 0.04) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(34, 255, 102, 0.04) 1px, transparent 1px);
+                linear-gradient(to right, rgba(var(--accent-rgb)/0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(var(--accent-rgb)/0.04) 1px, transparent 1px);
         }
 
         /* Custom Scrollbar */
@@ -92,7 +95,7 @@
             width: 8px;
         }
         ::-webkit-scrollbar-track {
-            background: #020a04;
+            background: var(--bg2);
         }
         ::-webkit-scrollbar-thumb {
             background: #333333;
@@ -100,13 +103,18 @@
             border: 1px solid #555;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #22ff66;
-            box-shadow: 0 0 10px #22ff66;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
         }
 
+
+        .theme-btn { padding: 2px 8px; border: 1px solid transparent; border-radius: 8px; font-size: 15px; line-height: 1.5; background: transparent; cursor: pointer; transition: all .2s; }
+        .theme-btn:hover { background: rgba(var(--accent-rgb)/0.15); }
+        .theme-btn.active { border-color: var(--accent); background: rgba(var(--accent-rgb)/0.2); box-shadow: 0 0 10px rgba(var(--accent-rgb)/0.5); }
+
         @keyframes pulseGlow {
-            0%, 100% { opacity: 0.6; filter: drop-shadow(0 0 15px rgba(34, 255, 102,0.6)); }
-            50% { opacity: 1; filter: drop-shadow(0 0 30px rgba(34, 255, 102,0.9)); }
+            0%, 100% { opacity: 0.6; filter: drop-shadow(0 0 15px rgba(var(--accent-rgb)/0.6)); }
+            50% { opacity: 1; filter: drop-shadow(0 0 30px rgba(var(--accent-rgb)/0.9)); }
         }
 
         .animate-pulse-glow {
@@ -121,9 +129,9 @@
     <div class="relative z-10 flex flex-col min-h-screen">
         
         <header class="w-full border-b border-white/20 bg-black/80 backdrop-blur-md sticky top-0 z-40">
-            <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap gap-2 justify-between items-center">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-white text-black font-black flex items-center justify-center font-mono shadow-[0_0_15px_rgba(34, 255, 102,0.8)]">SM</div>
+                    <div class="w-8 h-8 rounded-full bg-white text-black font-black flex items-center justify-center font-mono shadow-[0_0_15px_rgba(var(--accent-rgb)/0.8)]">SM</div>
                     <span class="font-black tracking-widest text-xl chrome-gradient uppercase font-mono">Shek Modz</span>
                 </div>
                 
@@ -131,14 +139,26 @@
                     <div id="adminBadge" class="hidden items-center gap-2 px-3 py-1 bg-white/10 border border-white/40 rounded-full text-xs font-mono glow-box-sm">
                         <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
                         <span class="text-white font-bold tracking-wider">ADMIN UNLOCKED</span>
-                        <button onclick="logoutAdmin()" class="ml-2 text-green-300/60 hover:text-white"><i class="fa-solid fa-right-from-bracket"></i></button>
+                        <button onclick="logoutAdmin()" class="ml-2 text-soft/60 hover:text-white"><i class="fa-solid fa-right-from-bracket"></i></button>
                     </div>
 
                     <button id="openAuthBtn" onclick="toggleAuthModal()" class="px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2">
                         <i class="fa-solid fa-key text-xs"></i> Admin Access
                     </button>
                     
-                    <button id="createPostBtn" onclick="openPostModal()" class="hidden px-4 py-1.5 rounded-lg bg-white text-black hover:bg-green-300 transition-all duration-300 font-mono text-xs uppercase tracking-wider font-extrabold shadow-[0_0_15px_rgba(34, 255, 102,0.7)] flex items-center gap-2">
+                    <div id="themePicker" class="hidden items-center gap-1 px-2 py-1 border border-white/30 rounded-lg bg-black/60" title="Site theme: everyone sees the one you pick">
+                        <span class="text-[10px] font-mono uppercase text-soft/60 mr-1">Theme</span>
+                        <button class="theme-btn" data-theme-btn="summer" onclick="setSiteTheme('summer')" title="Summer">☀️</button>
+                        <button class="theme-btn" data-theme-btn="fall" onclick="setSiteTheme('fall')" title="Fall / Halloween">🎃</button>
+                        <button class="theme-btn" data-theme-btn="winter" onclick="setSiteTheme('winter')" title="Winter">❄️</button>
+                        <button class="theme-btn" data-theme-btn="spring" onclick="setSiteTheme('spring')" title="Spring">🌸</button>
+                    </div>
+
+                    <button id="announceBtn" onclick="openAnnounceModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Send an announcement to everyone">
+                        <i class="fa-solid fa-bullhorn text-xs"></i> Announce
+                    </button>
+
+                    <button id="createPostBtn" onclick="openPostModal()" class="hidden px-4 py-1.5 rounded-lg bg-white text-black hover:bg-soft transition-all duration-300 font-mono text-xs uppercase tracking-wider font-extrabold shadow-[0_0_15px_rgba(var(--accent-rgb)/0.7)] flex items-center gap-2">
                         <i class="fa-solid fa-plus"></i> Create Mod
                     </button>
                 </div>
@@ -146,10 +166,10 @@
         </header>
 
         <section class="relative w-full border-b border-white/15 py-16 md:py-24 bg-gradient-to-b from-black via-zinc-950 to-black overflow-hidden scanline">
-            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34, 255, 102,0.12)_0,transparent_70%)] pointer-events-none"></div>
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--accent-rgb)/0.12)_0,transparent_70%)] pointer-events-none"></div>
             
             <div class="max-w-5xl mx-auto px-4 text-center relative z-10">
-                <div class="inline-block px-4 py-1 mb-4 border border-white/30 rounded-full bg-white/5 backdrop-blur-md text-xs font-mono tracking-widest uppercase text-green-200/80 glow-box-sm">
+                <div class="inline-block px-4 py-1 mb-4 border border-white/30 rounded-full bg-white/5 backdrop-blur-md text-xs font-mono tracking-widest uppercase text-soft/80 glow-box-sm">
                     /// discord.gg/yfA43ADx ///
                 </div>
                 
@@ -157,7 +177,7 @@
                     Shek Modz
                 </h1>
                 
-                <p class="max-w-2xl mx-auto text-green-300/60 text-sm md:text-base font-mono mb-8 tracking-wide">
+                <p class="max-w-2xl mx-auto text-soft/60 text-sm md:text-base font-mono mb-8 tracking-wide">
                     BEST GAME INFO PULLS, BACKEND LEAKS, APKS, AND GENERAL MODS WEBSITE
                 </p>
 
@@ -165,15 +185,15 @@
                 <div class="grid grid-cols-3 max-w-lg mx-auto gap-4 p-3 rounded-xl border border-white/10 bg-black/60 glass-panel">
                     <div class="text-center">
                         <div id="statTotal" class="text-2xl font-bold font-mono text-white">0</div>
-                        <div class="text-[10px] uppercase font-mono text-green-400/50">Total Mods</div>
+                        <div class="text-[10px] uppercase font-mono text-soft/50">Total Mods</div>
                     </div>
                     <div class="text-center border-x border-white/10">
                         <div id="statWorking" class="text-2xl font-bold font-mono text-white glow-text">0</div>
-                        <div class="text-[10px] uppercase font-mono text-green-400/50">Working</div>
+                        <div class="text-[10px] uppercase font-mono text-soft/50">Working</div>
                     </div>
                     <div class="text-center">
                         <div class="text-2xl font-bold font-mono text-white">v2</div>
-                        <div class="text-[10px] uppercase font-mono text-green-400/50">Version</div>
+                        <div class="text-[10px] uppercase font-mono text-soft/50">Version</div>
                     </div>
                 </div>
             </div>
@@ -184,17 +204,17 @@
             <!-- Filter Bar -->
             <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 p-4 rounded-xl border border-white/15 bg-black/80 glass-panel">
                 <div class="relative w-full sm:w-80">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-green-400/50 text-xs"></i>
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-soft/50 text-xs"></i>
                     <input type="text" id="searchInput" oninput="renderPosts()" placeholder="SEARCH MODS OR AUTHORS..." 
                         class="w-full pl-9 pr-4 py-2 bg-black/60 border border-white/20 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition">
                 </div>
 
                 <div class="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-                    <span class="text-xs font-mono text-green-400/50 uppercase mr-1">Status:</span>
+                    <span class="text-xs font-mono text-soft/50 uppercase mr-1">Status:</span>
                     <button onclick="setFilter('ALL')" id="filterAll" class="px-3 py-1.5 rounded-lg border border-white bg-white text-black text-xs font-mono font-bold transition">ALL</button>
-                    <button onclick="setFilter('Tested & Working')" id="filterWorking" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-green-200/80 transition">WORKING</button>
-                    <button onclick="setFilter('Not Tested')" id="filterNotTested" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-green-200/80 transition">UNTESTED</button>
-                    <button onclick="setFilter('Not Working')" id="filterNotWorking" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-green-200/80 transition">BROKEN</button>
+                    <button onclick="setFilter('Tested & Working')" id="filterWorking" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition">WORKING</button>
+                    <button onclick="setFilter('Not Tested')" id="filterNotTested" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition">UNTESTED</button>
+                    <button onclick="setFilter('Not Working')" id="filterNotWorking" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition">BROKEN</button>
                 </div>
             </div>
 
@@ -204,13 +224,13 @@
             </div>
 
             <div id="noPostsMsg" class="hidden text-center py-20 border border-dashed border-white/20 rounded-2xl bg-black/40">
-                <i class="fa-solid fa-ghost text-4xl text-green-500/40 mb-3"></i>
-                <p class="font-mono text-sm text-green-300/60">No matching mods</p>
+                <i class="fa-solid fa-ghost text-4xl text-soft/40 mb-3"></i>
+                <p class="font-mono text-sm text-soft/60">No matching mods</p>
             </div>
         </main>
 
         <footer class="w-full border-t border-white/15 py-8 bg-black mt-auto">
-            <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-mono text-green-400/50">
+            <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-mono text-soft/50">
                 <div>&copy; 2026 SHEK MODZ. ALL RIGHTS RESERVED.</div>
                 <div class="flex gap-6">
                     <span class="hover:text-white cursor-pointer transition">PRIVACY</span>
@@ -223,62 +243,123 @@
 
     <div id="authModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
         <div class="max-w-md w-full glass-panel border border-white/30 rounded-2xl p-6 relative glow-heavy">
-            <button onclick="toggleAuthModal()" class="absolute top-4 right-4 text-green-300/60 hover:text-white">
+            <button onclick="toggleAuthModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
             
             <div class="text-center mb-6">
-                <div class="w-12 h-12 rounded-full border border-white/40 bg-white/10 flex items-center justify-center mx-auto mb-3 shadow-[0_0_15px_rgba(34, 255, 102,0.5)]">
+                <div class="w-12 h-12 rounded-full border border-white/40 bg-white/10 flex items-center justify-center mx-auto mb-3 shadow-[0_0_15px_rgba(var(--accent-rgb)/0.5)]">
                     <i class="fa-solid fa-lock text-white text-lg"></i>
                 </div>
                 <h3 class="text-xl font-black font-mono uppercase tracking-wider text-white">AUTHENTICATION</h3>
-                <p class="text-xs font-mono text-green-300/60 mt-1">ENTER ADMIN PASSCODE TO UNLOCK POST MANAGEMENT</p>
+                <p class="text-xs font-mono text-soft/60 mt-1">ENTER ADMIN PASSCODE TO UNLOCK POST MANAGEMENT</p>
             </div>
 
             <form onsubmit="handleAuthSubmit(event)">
                 <div class="mb-4">
-                    <label class="block text-xs font-mono text-green-200/80 uppercase mb-2">ACCESS KEY</label>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">ACCESS KEY</label>
                     <input type="password" id="passwordInput" placeholder="Enter password..." required
                         class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50 tracking-widest">
                 </div>
                 <div id="authError" class="hidden text-xs font-mono text-red-400 mb-4 text-center">
                     <i class="fa-solid fa-circle-exclamation mr-1"></i> ACCESS DENIED: INVALID PASSCODE
                 </div>
-                <button type="submit" class="w-full py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-green-300 transition shadow-[0_0_20px_rgba(34, 255, 102,0.6)]">
+                <button type="submit" class="w-full py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.6)]">
                     VERIFY CREDENTIALS
                 </button>
             </form>
         </div>
     </div>
 
+    <div id="announceModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-lg w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
+            <button onclick="closeAnnounceModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="mb-5">
+                <h3 class="text-2xl font-black font-mono uppercase tracking-wider chrome-gradient">ANNOUNCEMENT</h3>
+                <p class="text-xs font-mono text-soft/60 mt-1">SHOWN TO EVERYONE ON THE SITE UNTIL YOU REMOVE IT</p>
+            </div>
+
+            <div id="announceLive" class="hidden mb-5 p-3 rounded-xl border border-white/30 bg-white/5 text-xs font-mono">
+                <div class="text-soft/60 uppercase mb-1">Live right now (<span id="announceLiveType"></span>):</div>
+                <div id="announceLiveMsg" class="text-white break-words whitespace-pre-wrap"></div>
+            </div>
+
+            <form onsubmit="handleAnnounceSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">TYPE</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="announceType" value="popup" class="peer sr-only" checked>
+                            <div class="px-3 py-3 rounded-xl border border-white/20 bg-black text-center font-mono text-xs text-soft/80 peer-checked:border-white peer-checked:bg-white/15 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-white transition">
+                                <i class="fa-regular fa-window-restore block text-lg mb-1"></i>
+                                POP-UP<br><span class="text-[10px] text-soft/50">they must close it</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="announceType" value="bar" class="peer sr-only">
+                            <div class="px-3 py-3 rounded-xl border border-white/20 bg-black text-center font-mono text-xs text-soft/80 peer-checked:border-white peer-checked:bg-white/15 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-white transition">
+                                <i class="fa-solid fa-grip-lines block text-lg mb-1"></i>
+                                GLOWING BAR<br><span class="text-[10px] text-soft/50">pinned to the top</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">MESSAGE *</label>
+                    <textarea id="announceMsgInput" rows="4" maxlength="500" required placeholder="e.g., New mods dropped! Join the Discord for updates."
+                        class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white"></textarea>
+                    <div class="text-right text-[10px] font-mono text-soft/50 mt-1"><span id="announceCount">0</span>/500</div>
+                </div>
+
+                <div id="announceError" class="hidden text-xs font-mono text-red-400 text-center"></div>
+
+                <div class="pt-2 flex flex-col sm:flex-row gap-3">
+                    <button type="button" id="announceRemoveBtn" onclick="removeAnnouncement()" class="hidden sm:w-1/3 py-3 bg-black border border-red-500/40 text-red-400 font-mono text-xs font-bold uppercase rounded-xl hover:border-red-500 transition">
+                        REMOVE
+                    </button>
+                    <button type="button" onclick="closeAnnounceModal()" class="flex-1 py-3 bg-black border border-white/30 text-white font-mono text-xs font-bold uppercase rounded-xl hover:bg-white/10 transition">
+                        CANCEL
+                    </button>
+                    <button type="submit" class="flex-1 py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.7)]">
+                        PUBLISH
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="postModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
         <div class="max-w-xl w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
-            <button onclick="closePostModal()" class="absolute top-4 right-4 text-green-300/60 hover:text-white">
+            <button onclick="closePostModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
 
             <div class="mb-6">
                 <h3 id="modalTitle" class="text-2xl font-black font-mono uppercase tracking-wider chrome-gradient">CREATE NEW MOD POST</h3>
-                <p class="text-xs font-mono text-green-300/60 mt-1">PUBLISH MODIFICATIONS TO THE SHEK ARCHIVE</p>
+                <p class="text-xs font-mono text-soft/60 mt-1">PUBLISH MODIFICATIONS TO THE SHEK ARCHIVE</p>
             </div>
 
             <form onsubmit="handleSavePost(event)" class="space-y-4">
                 <input type="hidden" id="postId">
 
                 <div>
-                    <label class="block text-xs font-mono text-green-200/80 uppercase mb-1">MOD TITLE *</label>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">MOD TITLE *</label>
                     <input type="text" id="postTitleInput" required placeholder="e.g., CyberHUD Overhaul v3.0"
                         class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-mono text-green-200/80 uppercase mb-1">AUTHOR NAME *</label>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">AUTHOR NAME *</label>
                     <input type="text" id="postAuthorInput" required placeholder="e.g., NeonDev"
                         class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-mono text-green-200/80 uppercase mb-1">STATUS *</label>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">STATUS *</label>
                     <select id="postStatusInput" required class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
                         <option value="Tested & Working">Tested & Working</option>
                         <option value="Not Tested">Not Tested</option>
@@ -287,13 +368,13 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-mono text-green-200/80 uppercase mb-1">DESCRIPTION *</label>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">DESCRIPTION *</label>
                     <textarea id="postDescInput" rows="4" required placeholder="Detailed notes, installation steps, feature set..."
                         class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white"></textarea>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-mono text-green-200/80 uppercase mb-1">FILE LINK OR FILE URL *</label>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">FILE LINK OR FILE URL *</label>
                     <input type="text" id="postFileInput" required placeholder="https://... or filename.zip"
                         class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
                 </div>
@@ -302,7 +383,7 @@
                     <button type="button" onclick="closePostModal()" class="w-1/2 py-3 bg-black border border-white/30 text-white font-mono text-xs font-bold uppercase rounded-xl hover:bg-white/10 transition">
                         CANCEL
                     </button>
-                    <button type="submit" class="w-1/2 py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-green-300 transition shadow-[0_0_20px_rgba(34, 255, 102,0.7)]">
+                    <button type="submit" class="w-1/2 py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.7)]">
                         SAVE MOD POST
                     </button>
                 </div>
@@ -333,6 +414,7 @@
             initCanvas();
             try { isAdmin = (await api('/api/session')).admin; } catch (e) {}
             updateAuthUI();
+            markTheme();
             await loadPosts();
         });
 
@@ -344,6 +426,86 @@
             adminBadge.classList.toggle('flex', isAdmin);
             openAuthBtn.classList.toggle('hidden', isAdmin);
             createPostBtn.classList.toggle('hidden', !isAdmin);
+            const picker = document.getElementById('themePicker');
+            picker.classList.toggle('hidden', !isAdmin);
+            picker.classList.toggle('flex', isAdmin);
+            document.getElementById('announceBtn').classList.toggle('hidden', !isAdmin);
+        }
+
+        /* ---------- announcements (admin) ---------- */
+        function announceError(msg) {
+            const el = document.getElementById('announceError');
+            el.textContent = msg || '';
+            el.classList.toggle('hidden', !msg);
+        }
+
+        async function openAnnounceModal() {
+            announceError('');
+            await (window.ShekAnnounce ? ShekAnnounce.refresh() : Promise.resolve());   // show what is really live
+            const cur = window.ShekAnnounce ? ShekAnnounce.current() : { active: false };
+            const live = document.getElementById('announceLive');
+            live.classList.toggle('hidden', !cur.active);
+            document.getElementById('announceRemoveBtn').classList.toggle('hidden', !cur.active);
+            if (cur.active) {
+                document.getElementById('announceLiveType').textContent = cur.type === 'bar' ? 'glowing bar' : 'pop-up';
+                document.getElementById('announceLiveMsg').textContent = cur.message;
+            }
+            const input = document.getElementById('announceMsgInput');
+            input.value = cur.active ? cur.message : '';
+            document.querySelector('input[name="announceType"][value="' + (cur.active && cur.type === 'bar' ? 'bar' : 'popup') + '"]').checked = true;
+            document.getElementById('announceCount').textContent = input.value.length;
+            document.getElementById('announceModal').classList.remove('hidden');
+            input.focus();
+        }
+
+        function closeAnnounceModal() {
+            document.getElementById('announceModal').classList.add('hidden');
+        }
+
+        document.addEventListener('input', (e) => {
+            if (e.target && e.target.id === 'announceMsgInput') document.getElementById('announceCount').textContent = e.target.value.length;
+        });
+
+        async function handleAnnounceSubmit(e) {
+            e.preventDefault();
+            const type = document.querySelector('input[name="announceType"]:checked').value;
+            const message = document.getElementById('announceMsgInput').value;
+            try {
+                const a = await api('/api/announcement', { method: 'PUT', body: JSON.stringify({ type, message }) });
+                ShekAnnounce.apply(a);
+                closeAnnounceModal();
+            } catch (err) {
+                if (err.status === 401) { isAdmin = false; updateAuthUI(); closeAnnounceModal(); renderPosts(); }
+                announceError(err.message);
+            }
+        }
+
+        async function removeAnnouncement() {
+            try {
+                await api('/api/announcement', { method: 'DELETE' });
+                ShekAnnounce.apply({ active: false });
+                closeAnnounceModal();
+            } catch (err) {
+                if (err.status === 401) { isAdmin = false; updateAuthUI(); closeAnnounceModal(); renderPosts(); }
+                announceError(err.message);
+            }
+        }
+
+
+        function markTheme() {
+            const cur = window.ShekTheme && ShekTheme.current();
+            document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('active', b.dataset.themeBtn === cur));
+        }
+        document.addEventListener('themechange', markTheme);
+
+        async function setSiteTheme(name) {
+            try {
+                await api('/api/theme', { method: 'PUT', body: JSON.stringify({ theme: name }) });
+                ShekTheme.apply(name);
+            } catch (err) {
+                if (err.status === 401) { isAdmin = false; updateAuthUI(); renderPosts(); }
+                alert(err.message);
+            }
         }
 
         async function handleAuthSubmit(e) {
@@ -359,7 +521,8 @@
                 toggleAuthModal();
                 renderPosts();
             } catch (err) {
-                errEl.innerHTML = '<i class="fa-solid fa-circle-exclamation mr-1"></i> ' + esc(err.status === 429 ? 'TOO MANY ATTEMPTS: TRY LATER' : 'ACCESS DENIED: INVALID PASSCODE');
+                const msg = err.status === 401 ? 'ACCESS DENIED: INVALID PASSCODE' : err.status === 429 ? 'TOO MANY ATTEMPTS: TRY LATER' : ('SERVER ERROR (' + (err.status || 'no connection') + '): ' + err.message);
+                errEl.innerHTML = '<i class="fa-solid fa-circle-exclamation mr-1"></i> ' + esc(msg);
                 errEl.classList.remove('hidden');
             }
         }
@@ -388,7 +551,7 @@
                 const el = document.getElementById(id);
                 el.className = f === activeFilter
                     ? "px-3 py-1.5 rounded-lg border border-white bg-white text-black text-xs font-mono font-bold transition"
-                    : "px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-green-200/80 transition";
+                    : "px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition";
             });
             renderPosts();
         }
@@ -438,15 +601,15 @@
 
         function getStatusBadgeHtml(status) {
             if (status === 'Tested & Working') {
-                return `<span class="px-2.5 py-1 rounded-full bg-white text-black font-extrabold text-[10px] font-mono tracking-wider shadow-[0_0_12px_rgba(34,255,102,0.9)] flex items-center gap-1.5">
+                return `<span class="px-2.5 py-1 rounded-full bg-white text-black font-extrabold text-[10px] font-mono tracking-wider shadow-[0_0_12px_rgba(var(--accent-rgb)/0.9)] flex items-center gap-1.5">
                             <i class="fa-solid fa-circle-check"></i> WORKING
                         </span>`;
             } else if (status === 'Not Tested') {
-                return `<span class="px-2.5 py-1 rounded-full border border-white/40 bg-white/10 text-green-200/80 text-[10px] font-mono tracking-wider flex items-center gap-1.5">
+                return `<span class="px-2.5 py-1 rounded-full border border-white/40 bg-white/10 text-soft/80 text-[10px] font-mono tracking-wider flex items-center gap-1.5">
                             <i class="fa-solid fa-triangle-exclamation"></i> UNTESTED
                         </span>`;
             }
-            return `<span class="px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-700 text-green-400/50 line-through text-[10px] font-mono tracking-wider flex items-center gap-1.5">
+            return `<span class="px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-700 text-soft/50 line-through text-[10px] font-mono tracking-wider flex items-center gap-1.5">
                         <i class="fa-solid fa-bug text-xs"></i> NOT WORKING
                     </span>`;
         }
@@ -477,21 +640,21 @@
                     <div>
                         <div class="flex justify-between items-start gap-2 mb-4">
                             <div>${getStatusBadgeHtml(post.status)}</div>
-                            <span class="text-[10px] font-mono text-green-400/50">${esc(post.date)}</span>
+                            <span class="text-[10px] font-mono text-soft/50">${esc(post.date)}</span>
                         </div>
-                        <h2 class="text-xl font-bold font-mono tracking-wide text-white mb-2 group-hover:text-green-200 transition">${esc(post.title)}</h2>
-                        <p class="text-green-300/60 text-xs font-mono leading-relaxed mb-6 line-clamp-3">${esc(post.desc)}</p>
+                        <h2 class="text-xl font-bold font-mono tracking-wide text-white mb-2 group-hover:text-soft transition">${esc(post.title)}</h2>
+                        <p class="text-soft/60 text-xs font-mono leading-relaxed mb-6 line-clamp-3">${esc(post.desc)}</p>
                     </div>
                     <div>
                         <div class="pt-4 border-t border-white/10 flex justify-between items-center text-xs font-mono mb-4">
-                            <span class="text-green-400/50">AUTHOR: <strong class="text-white">${esc(post.author)}</strong></span>
+                            <span class="text-soft/50">AUTHOR: <strong class="text-white">${esc(post.author)}</strong></span>
                         </div>
                         <div class="flex items-center gap-2">
                             <a href="${esc(safeUrl(post.fileLink))}" target="_blank" rel="noopener noreferrer" class="flex-grow py-2 px-4 rounded-xl border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 text-center font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-download text-xs"></i> Get File
                             </a>
                             ${isAdmin ? `
-                                <button onclick="openPostModal(${post.id})" title="Edit Post" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-green-300/60 transition">
+                                <button onclick="openPostModal(${post.id})" title="Edit Post" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </button>
                                 <button onclick="deletePost(${post.id})" title="Delete Post" class="p-2 border border-red-500/30 bg-black/60 rounded-xl hover:border-red-500 text-red-400 transition">
@@ -519,8 +682,9 @@
 
             function draw() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = 'rgba(34, 255, 102, 0.6)';
-                ctx.strokeStyle = 'rgba(34, 255, 102, 0.08)';
+                const rgb = window.ShekTheme ? ShekTheme.rgb() : '34,255,102';
+                ctx.fillStyle = `rgba(${rgb},0.6)`;
+                ctx.strokeStyle = `rgba(${rgb},0.08)`;
                 for (let i = 0; i < particles.length; i++) {
                     const p = particles[i];
                     p.x += p.vx; p.y += p.vy;
