@@ -138,12 +138,12 @@
                 <div class="flex items-center gap-3">
                     <div id="adminBadge" class="hidden items-center gap-2 px-3 py-1 bg-white/10 border border-white/40 rounded-full text-xs font-mono glow-box-sm">
                         <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
-                        <span class="text-white font-bold tracking-wider">ADMIN UNLOCKED</span>
-                        <button onclick="logoutAdmin()" class="ml-2 text-soft/60 hover:text-white"><i class="fa-solid fa-right-from-bracket"></i></button>
+                        <span id="whoLabel" class="text-white font-bold tracking-wider truncate max-w-[12rem]"></span>
+                        <button onclick="logout()" title="Log out" class="ml-2 text-soft/60 hover:text-white"><i class="fa-solid fa-right-from-bracket"></i></button>
                     </div>
 
                     <button id="openAuthBtn" onclick="toggleAuthModal()" class="px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2">
-                        <i class="fa-solid fa-key text-xs"></i> Admin Access
+                        <i class="fa-solid fa-user text-xs"></i> Log in / Sign up
                     </button>
                     
                     <div id="themePicker" class="hidden items-center gap-1 px-2 py-1 border border-white/30 rounded-lg bg-black/60" title="Site theme: everyone sees the one you pick">
@@ -153,6 +153,10 @@
                         <button class="theme-btn" data-theme-btn="winter" onclick="setSiteTheme('winter')" title="Winter">❄️</button>
                         <button class="theme-btn" data-theme-btn="spring" onclick="setSiteTheme('spring')" title="Spring">🌸</button>
                     </div>
+
+                    <button id="usersBtn" onclick="openUsersModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Manage accounts: roles, permissions, bans">
+                        <i class="fa-solid fa-users text-xs"></i> Users
+                    </button>
 
                     <button id="announceBtn" onclick="openAnnounceModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Send an announcement to everyone">
                         <i class="fa-solid fa-bullhorn text-xs"></i> Announce
@@ -164,6 +168,8 @@
                 </div>
             </div>
         </header>
+
+        <div id="banNotice" class="hidden w-full px-4 py-3 text-center text-xs font-mono text-red-300 bg-red-950/70 border-b border-red-500/40" role="alert"></div>
 
         <section class="relative w-full border-b border-white/15 py-16 md:py-24 bg-gradient-to-b from-black via-zinc-950 to-black overflow-hidden scanline">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--accent-rgb)/0.12)_0,transparent_70%)] pointer-events-none"></div>
@@ -246,28 +252,127 @@
             <button onclick="toggleAuthModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
-            
-            <div class="text-center mb-6">
+
+            <div class="text-center mb-5">
                 <div class="w-12 h-12 rounded-full border border-white/40 bg-white/10 flex items-center justify-center mx-auto mb-3 shadow-[0_0_15px_rgba(var(--accent-rgb)/0.5)]">
                     <i class="fa-solid fa-lock text-white text-lg"></i>
                 </div>
-                <h3 class="text-xl font-black font-mono uppercase tracking-wider text-white">AUTHENTICATION</h3>
-                <p class="text-xs font-mono text-soft/60 mt-1">ENTER ADMIN PASSCODE TO UNLOCK POST MANAGEMENT</p>
+                <h3 class="text-xl font-black font-mono uppercase tracking-wider text-white">ACCOUNT</h3>
+                <p id="authSub" class="text-xs font-mono text-soft/60 mt-1">LOG IN TO YOUR SHEK MODZ ACCOUNT</p>
             </div>
 
-            <form onsubmit="handleAuthSubmit(event)">
-                <div class="mb-4">
-                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">ACCESS KEY</label>
-                    <input type="password" id="passwordInput" placeholder="Enter password..." required
-                        class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50 tracking-widest">
+            <div class="grid grid-cols-3 gap-2 mb-5">
+                <button type="button" data-auth-tab="login" onclick="setAuthTab('login')" class="py-2 rounded-lg border border-white bg-white text-black text-xs font-mono font-bold uppercase transition">LOG IN</button>
+                <button type="button" data-auth-tab="signup" onclick="setAuthTab('signup')" class="py-2 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 uppercase transition">SIGN UP</button>
+                <button type="button" data-auth-tab="owner" onclick="setAuthTab('owner')" class="py-2 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 uppercase transition">OWNER</button>
+            </div>
+
+            <form id="authLogin" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">USERNAME</label>
+                    <input type="text" id="loginUser" required maxlength="20" autocomplete="username" autocapitalize="off" spellcheck="false" class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50">
                 </div>
-                <div id="authError" class="hidden text-xs font-mono text-red-400 mb-4 text-center">
-                    <i class="fa-solid fa-circle-exclamation mr-1"></i> ACCESS DENIED: INVALID PASSCODE
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">PASSWORD</label>
+                    <input type="password" id="loginPass" required maxlength="128" autocomplete="current-password" class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50">
                 </div>
-                <button type="submit" class="w-full py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.6)]">
-                    VERIFY CREDENTIALS
-                </button>
+                <button type="submit" class="w-full py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.6)]">LOG IN</button>
             </form>
+
+            <form id="authSignup" onsubmit="handleSignupSubmit(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">CHOOSE A USERNAME</label>
+                    <input type="text" id="signupUser" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" autocomplete="username" autocapitalize="off" spellcheck="false" class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50">
+                    <p class="text-[10px] font-mono text-soft/50 mt-1">3-20 characters: letters, numbers, underscores</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">PASSWORD</label>
+                    <input type="password" id="signupPass" required minlength="8" maxlength="128" autocomplete="new-password" class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50">
+                    <p class="text-[10px] font-mono text-soft/50 mt-1">at least 8 characters</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">CONFIRM PASSWORD</label>
+                    <input type="password" id="signupPass2" required minlength="8" maxlength="128" autocomplete="new-password" class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50">
+                </div>
+                <button type="submit" class="w-full py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.6)]">CREATE ACCOUNT</button>
+            </form>
+
+            <form id="authOwner" onsubmit="handleAuthSubmit(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">OWNER ACCESS KEY</label>
+                    <input type="password" id="passwordInput" required autocomplete="off" placeholder="Enter password..." class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50 tracking-widest">
+                    <p class="text-[10px] font-mono text-soft/50 mt-1">the site owner's password. Owners can do everything and manage accounts.</p>
+                </div>
+                <button type="submit" class="w-full py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.6)]">VERIFY CREDENTIALS</button>
+            </form>
+
+            <div id="authError" class="hidden text-xs font-mono text-red-400 mt-4 text-center break-words" role="alert"></div>
+        </div>
+    </div>
+
+    <div id="usersModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-2xl w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
+            <button onclick="closeUsersModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="mb-5">
+                <h3 class="text-2xl font-black font-mono uppercase tracking-wider chrome-gradient">USERS</h3>
+                <p class="text-xs font-mono text-soft/60 mt-1">ROLES, PERMISSIONS AND BANS &middot; <span id="usersCount">0 accounts</span></p>
+            </div>
+            <div class="relative mb-4">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-soft/50 text-xs"></i>
+                <input type="text" id="userSearch" oninput="renderUsers()" placeholder="SEARCH USERNAMES..." autocomplete="off"
+                    class="w-full pl-9 pr-4 py-2 bg-black/60 border border-white/20 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition">
+            </div>
+            <div id="usersList" class="space-y-2 max-h-[55vh] overflow-y-auto pr-1"></div>
+            <div id="usersEmpty" class="hidden text-center py-10 font-mono text-sm text-soft/60">No accounts yet</div>
+        </div>
+    </div>
+
+    <div id="userModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-lg w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
+            <button onclick="closeUserModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="mb-5">
+                <h3 id="umName" class="text-2xl font-black font-mono tracking-wider chrome-gradient break-all"></h3>
+                <p id="umMeta" class="text-xs font-mono text-soft/60 mt-1"></p>
+            </div>
+
+            <div id="umBanned" class="hidden mb-5 p-3 rounded-xl border border-red-500/50 bg-red-950/30 text-xs font-mono">
+                <div id="umBannedText" class="text-red-300 break-words mb-3"></div>
+                <button type="button" onclick="unbanUser()" class="w-full py-2 bg-black border border-red-500/50 text-red-300 font-mono text-xs font-bold uppercase rounded-lg hover:bg-red-500/20 transition">LIFT BAN NOW</button>
+            </div>
+
+            <form onsubmit="saveUserRole(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">ROLE</label>
+                    <select id="umRole" onchange="syncPermBoxes(true)" class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">PERMISSIONS</label>
+                    <div id="umPerms" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                    <p id="umPermsNote" class="text-[10px] font-mono text-soft/50 mt-2"></p>
+                </div>
+                <button type="submit" class="w-full py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.6)]">SAVE ROLE</button>
+                <button type="button" id="umClearBtn" onclick="removeAllPerms()" class="w-full py-2.5 bg-black border border-white/30 text-soft/80 font-mono text-xs font-bold uppercase rounded-xl hover:bg-white/10 transition">REMOVE ALL PERMISSIONS</button>
+            </form>
+
+            <div class="mt-6 pt-5 border-t border-white/15">
+                <h4 class="text-sm font-black font-mono uppercase tracking-wider text-red-400 mb-3">BAN</h4>
+                <div class="grid grid-cols-3 gap-3 mb-3">
+                    <select id="umDays" class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
+                        <option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option>
+                        <option value="4">4 days</option><option value="5">5 days</option><option value="6">6 days</option>
+                        <option value="7">7 days (1 week)</option>
+                    </select>
+                    <input type="text" id="umReason" maxlength="200" placeholder="Reason (they will see it)" autocomplete="off" class="col-span-2 w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
+                </div>
+                <button type="button" onclick="banUser()" class="w-full py-3 bg-black border border-red-500/50 text-red-400 font-mono text-xs font-black uppercase rounded-xl hover:bg-red-500/20 transition">BAN ACCOUNT</button>
+            </div>
+
+            <div id="umStatus" class="hidden mt-4 text-xs font-mono text-center text-white"></div>
+            <div id="umError" class="hidden mt-4 text-xs font-mono text-red-400 text-center break-words"></div>
         </div>
     </div>
 
@@ -394,7 +499,11 @@
     <script>
         let posts = [];
         let activeFilter = 'ALL';
-        let isAdmin = false;
+        let postsLoaded = false;
+        // who is logged in: the owner (ADMIN_PASSWORD), an account, or nobody. What they may do comes from the server.
+        let me = null, isOwner = false, perms = new Set();
+        const can = (p) => perms.has(p);
+        const $ = (id) => document.getElementById(id);
 
         const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const safeUrl = (u) => /^https?:\/\//i.test(u) ? u : (/^[a-z][a-z0-9+.-]*:/i.test(u) ? '#' : encodeURI(u));
@@ -406,30 +515,55 @@
                 ...opts,
             });
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw Object.assign(new Error(data.error || 'Request failed'), { status: res.status });
+            if (!res.ok) {
+                let msg = data.error || 'Request failed';
+                // show a ban's end time in the visitor's own time zone instead of GMT
+                if (data.banned) msg = 'You are banned until ' + new Date(data.banned.until).toLocaleString() + (data.banned.reason ? '. Reason: ' + data.banned.reason : '.');
+                throw Object.assign(new Error(msg), { status: res.status });
+            }
             return data;
         }
 
         window.addEventListener('load', async () => {
             initCanvas();
-            try { isAdmin = (await api('/api/session')).admin; } catch (e) {}
-            updateAuthUI();
+            await refreshSession();
             markTheme();
             await loadPosts();
         });
 
+        function applySession(s) {
+            s = s || {};
+            isOwner = !!s.owner;
+            me = s.user || null;
+            perms = new Set(s.permissions || []);
+            const bn = $('banNotice');
+            if (s.banned) {
+                bn.textContent = 'Your account is banned until ' + new Date(s.banned.until).toLocaleString() + (s.banned.reason ? '. Reason: ' + s.banned.reason : '.');
+                bn.classList.remove('hidden');
+            } else {
+                bn.classList.add('hidden');
+            }
+            updateAuthUI();
+            if (postsLoaded) renderPosts();
+        }
+
+        async function refreshSession() {
+            try { applySession(await api('/api/session')); } catch (e) {}
+        }
+
         function updateAuthUI() {
-            const adminBadge = document.getElementById('adminBadge');
-            const openAuthBtn = document.getElementById('openAuthBtn');
-            const createPostBtn = document.getElementById('createPostBtn');
-            adminBadge.classList.toggle('hidden', !isAdmin);
-            adminBadge.classList.toggle('flex', isAdmin);
-            openAuthBtn.classList.toggle('hidden', isAdmin);
-            createPostBtn.classList.toggle('hidden', !isAdmin);
-            const picker = document.getElementById('themePicker');
-            picker.classList.toggle('hidden', !isAdmin);
-            picker.classList.toggle('flex', isAdmin);
-            document.getElementById('announceBtn').classList.toggle('hidden', !isAdmin);
+            const loggedIn = isOwner || !!me;
+            const badge = $('adminBadge');
+            badge.classList.toggle('hidden', !loggedIn);
+            badge.classList.toggle('flex', loggedIn);
+            $('whoLabel').textContent = isOwner ? 'OWNER' : me ? me.username + ' \u00b7 ' + me.roleLabel : '';
+            $('openAuthBtn').classList.toggle('hidden', loggedIn);
+            $('createPostBtn').classList.toggle('hidden', !can('post'));
+            $('announceBtn').classList.toggle('hidden', !can('announce'));
+            $('usersBtn').classList.toggle('hidden', !isOwner);
+            const picker = $('themePicker');
+            picker.classList.toggle('hidden', !can('theme'));
+            picker.classList.toggle('flex', can('theme'));
         }
 
         /* ---------- announcements (admin) ---------- */
@@ -475,7 +609,7 @@
                 ShekAnnounce.apply(a);
                 closeAnnounceModal();
             } catch (err) {
-                if (err.status === 401) { isAdmin = false; updateAuthUI(); closeAnnounceModal(); renderPosts(); }
+                if (err.status === 401 || err.status === 403) { await refreshSession(); if (!can('announce')) closeAnnounceModal(); }
                 announceError(err.message);
             }
         }
@@ -486,7 +620,7 @@
                 ShekAnnounce.apply({ active: false });
                 closeAnnounceModal();
             } catch (err) {
-                if (err.status === 401) { isAdmin = false; updateAuthUI(); closeAnnounceModal(); renderPosts(); }
+                if (err.status === 401 || err.status === 403) { await refreshSession(); if (!can('announce')) closeAnnounceModal(); }
                 announceError(err.message);
             }
         }
@@ -503,44 +637,203 @@
                 await api('/api/theme', { method: 'PUT', body: JSON.stringify({ theme: name }) });
                 ShekTheme.apply(name);
             } catch (err) {
-                if (err.status === 401) { isAdmin = false; updateAuthUI(); renderPosts(); }
+                if (err.status === 401 || err.status === 403) await refreshSession();
                 alert(err.message);
             }
         }
 
-        async function handleAuthSubmit(e) {
-            e.preventDefault();
-            const input = document.getElementById('passwordInput');
-            const errEl = document.getElementById('authError');
-            try {
-                await api('/api/login', { method: 'POST', body: JSON.stringify({ password: input.value }) });
-                isAdmin = true;
-                input.value = '';
-                errEl.classList.add('hidden');
-                updateAuthUI();
-                toggleAuthModal();
-                renderPosts();
-            } catch (err) {
-                const msg = err.status === 401 ? 'ACCESS DENIED: INVALID PASSCODE' : err.status === 429 ? 'TOO MANY ATTEMPTS: TRY LATER' : ('SERVER ERROR (' + (err.status || 'no connection') + '): ' + err.message);
-                errEl.innerHTML = '<i class="fa-solid fa-circle-exclamation mr-1"></i> ' + esc(msg);
-                errEl.classList.remove('hidden');
-            }
+        /* ---------- log in / sign up / owner ---------- */
+        const ACTIVE_TAB = "py-2 rounded-lg border border-white bg-white text-black text-xs font-mono font-bold uppercase transition";
+        const INACTIVE_TAB = "py-2 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 uppercase transition";
+
+        function showAuthError(msg) {
+            const el = $('authError');
+            el.textContent = msg || '';
+            el.classList.toggle('hidden', !msg);
         }
 
-        async function logoutAdmin() {
-            try { await api('/api/logout', { method: 'POST' }); } catch (e) {}
-            isAdmin = false;
-            updateAuthUI();
-            renderPosts();
+        function setAuthTab(tab) {
+            const subs = { login: 'LOG IN TO YOUR SHEK MODZ ACCOUNT', signup: 'CREATE A FREE ACCOUNT', owner: 'OWNER ACCESS' };
+            ['login', 'signup', 'owner'].forEach((t) => {
+                $('auth' + t[0].toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== tab);
+                document.querySelector('[data-auth-tab="' + t + '"]').className = t === tab ? ACTIVE_TAB : INACTIVE_TAB;
+            });
+            $('authSub').textContent = subs[tab];
+            showAuthError('');
         }
 
         function toggleAuthModal() {
-            document.getElementById('authModal').classList.toggle('hidden');
-            document.getElementById('authError').classList.add('hidden');
+            const modal = $('authModal');
+            const opening = modal.classList.contains('hidden');
+            modal.classList.toggle('hidden');
+            if (opening) { setAuthTab('login'); $('loginUser').focus(); }
+            else showAuthError('');
         }
+
+        function authErrorText(err) {
+            if (err.status === 429) return 'Too many attempts. Try again later.';
+            if (!err.status || err.status >= 500) return 'Server error (' + (err.status || 'no connection') + '): ' + err.message;
+            return err.message;
+        }
+
+        function finishAuth(session) {
+            ['loginUser', 'loginPass', 'signupUser', 'signupPass', 'signupPass2', 'passwordInput'].forEach((id) => { $(id).value = ''; });
+            applySession(session);
+            $('authModal').classList.add('hidden');
+            showAuthError('');
+        }
+
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            try { finishAuth(await api('/api/login', { method: 'POST', body: JSON.stringify({ username: $('loginUser').value, password: $('loginPass').value }) })); }
+            catch (err) { showAuthError(authErrorText(err)); }
+        }
+
+        async function handleSignupSubmit(e) {
+            e.preventDefault();
+            if ($('signupPass').value !== $('signupPass2').value) return showAuthError('Passwords do not match.');
+            try { finishAuth(await api('/api/register', { method: 'POST', body: JSON.stringify({ username: $('signupUser').value, password: $('signupPass').value }) })); }
+            catch (err) { showAuthError(authErrorText(err)); }
+        }
+
+        async function handleAuthSubmit(e) {   // owner access key
+            e.preventDefault();
+            try { finishAuth(await api('/api/login', { method: 'POST', body: JSON.stringify({ password: $('passwordInput').value }) })); }
+            catch (err) { showAuthError(authErrorText(err)); }
+        }
+
+        async function logout() {
+            try { await api('/api/logout', { method: 'POST' }); } catch (e) {}
+            ['usersModal', 'userModal', 'announceModal', 'postModal'].forEach((id) => $(id).classList.add('hidden'));
+            applySession({});
+        }
+
+        /* ---------- owner: manage accounts ---------- */
+        let usersData = { users: [], roles: {}, permissions: [] };
+        let managingId = null;
+        const fmtDate = (ms) => new Date(ms).toLocaleString();
+        const permLabel = (k) => ((usersData.permissions.find((p) => p.key === k) || {}).label || k);
+        const loadUsers = async () => { usersData = await api('/api/users'); };
+
+        async function openUsersModal() {
+            if (!isOwner) return;
+            try { await loadUsers(); } catch (err) { alert(err.message); return; }
+            $('userSearch').value = '';
+            renderUsers();
+            $('usersModal').classList.remove('hidden');
+            $('userSearch').focus();
+        }
+
+        function closeUsersModal() { $('usersModal').classList.add('hidden'); }
+
+        function renderUsers() {
+            const q = $('userSearch').value.trim().toLowerCase();
+            const list = usersData.users.filter((u) => u.username.toLowerCase().includes(q));
+            const total = usersData.users.length;
+            $('usersCount').textContent = total + ' account' + (total === 1 ? '' : 's');
+            $('usersEmpty').textContent = total ? 'No accounts match' : 'No accounts yet';
+            $('usersEmpty').classList.toggle('hidden', list.length > 0);
+            $('usersList').innerHTML = list.map((u) => `
+                <div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${u.bannedUntil ? 'border-red-500/40 bg-red-950/20' : 'border-white/15 bg-black/40'}">
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-mono font-bold text-white break-all">${esc(u.username)}</span>
+                            <span class="px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-[10px] font-mono uppercase text-soft/80">${esc(u.roleLabel)}</span>
+                            ${u.bannedUntil ? `<span class="px-2 py-0.5 rounded-full border border-red-500/50 text-[10px] font-mono uppercase text-red-400">banned until ${esc(fmtDate(u.bannedUntil))}</span>` : ''}
+                        </div>
+                        <div class="text-[10px] font-mono text-soft/50 mt-1">${u.permissions.length ? esc(u.permissions.map(permLabel).join(' · ')) : 'no permissions'} · joined ${esc(u.createdAt)}</div>
+                    </div>
+                    <button onclick="openUserModal(${u.id})" class="shrink-0 px-3 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition text-xs font-mono font-bold uppercase">Manage</button>
+                </div>`).join('');
+        }
+
+        function userModalMessage(ok, err) {
+            const okEl = $('umStatus'), errEl = $('umError');
+            okEl.textContent = ok || ''; okEl.classList.toggle('hidden', !ok);
+            errEl.textContent = err || ''; errEl.classList.toggle('hidden', !err);
+        }
+
+        function openUserModal(id) {
+            managingId = id;
+            userModalMessage('', '');
+            fillUserModal();
+            $('userModal').classList.remove('hidden');
+        }
+
+        function closeUserModal() {
+            $('userModal').classList.add('hidden');
+            managingId = null;
+        }
+
+        function fillUserModal() {
+            const u = usersData.users.find((x) => x.id === managingId);
+            if (!u) return closeUserModal();
+            $('umName').textContent = u.username;
+            $('umMeta').textContent = 'JOINED ' + u.createdAt;
+            $('umRole').innerHTML = Object.entries(usersData.roles).map(([k, r]) => `<option value="${esc(k)}">${esc(r.label)}</option>`).join('');
+            $('umRole').value = u.role;
+            $('umPerms').innerHTML = usersData.permissions.map((p) => `
+                <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-black text-xs font-mono text-soft/80">
+                    <input type="checkbox" data-perm="${esc(p.key)}" ${u.permissions.includes(p.key) ? 'checked' : ''}> ${esc(p.label)}
+                </label>`).join('');
+            syncPermBoxes(false);
+            $('umClearBtn').classList.toggle('hidden', !u.permissions.length);   // nothing to remove
+            const banned = !!u.bannedUntil;
+            $('umBanned').classList.toggle('hidden', !banned);
+            if (banned) $('umBannedText').textContent = 'BANNED UNTIL ' + fmtDate(u.bannedUntil) + (u.banReason ? ' — ' + u.banReason : '');
+            $('umReason').value = '';
+        }
+
+        // presets fix the permissions; "Custom" lets the owner tick exactly what they want
+        function syncPermBoxes(applyPreset) {
+            const role = $('umRole').value;
+            const preset = usersData.roles[role] && usersData.roles[role].perms;
+            document.querySelectorAll('#umPerms input[data-perm]').forEach((cb) => {
+                if (applyPreset && preset) cb.checked = preset.includes(cb.dataset.perm);
+                cb.disabled = role !== 'custom';
+            });
+            $('umPermsNote').textContent = role === 'custom' ? 'Pick exactly what this account can do.' : 'Set by the role. Choose Custom to pick permissions yourself.';
+        }
+
+        async function patchUser(body, okMessage) {
+            try {
+                await api('/api/users/' + managingId, { method: 'PATCH', body: JSON.stringify(body) });
+                await loadUsers();
+                renderUsers();
+                fillUserModal();
+                userModalMessage(okMessage, '');
+            } catch (err) {
+                userModalMessage('', err.message);
+                if (err.status === 401 || err.status === 403) await refreshSession();
+            }
+        }
+
+        async function saveUserRole(e) {
+            e.preventDefault();
+            const role = $('umRole').value;
+            const body = { role };
+            if (role === 'custom') body.permissions = [...document.querySelectorAll('#umPerms input[data-perm]:checked')].map((cb) => cb.dataset.perm);
+            await patchUser(body, 'Saved.');
+        }
+
+        async function removeAllPerms() {
+            const u = usersData.users.find((x) => x.id === managingId);
+            if (!u || !confirm('Remove all permissions from ' + u.username + '? They keep their account as a plain member.')) return;
+            await patchUser({ role: 'member' }, 'All permissions removed.');
+        }
+
+        async function banUser() {
+            const u = usersData.users.find((x) => x.id === managingId);
+            const days = Number($('umDays').value);
+            if (!u || !confirm('Ban ' + u.username + ' for ' + days + ' day' + (days === 1 ? '' : 's') + '?')) return;
+            await patchUser({ ban: { days, reason: $('umReason').value } }, 'Banned for ' + days + ' day' + (days === 1 ? '' : 's') + '.');
+        }
+
+        async function unbanUser() { await patchUser({ unban: true }, 'Ban lifted.'); }
 
         async function loadPosts() {
             try { posts = await api('/api/posts'); } catch (e) { posts = []; }
+            postsLoaded = true;
             renderPosts();
         }
 
@@ -588,13 +881,13 @@
                 closePostModal();
                 await loadPosts();
             } catch (err) {
-                if (err.status === 401) { isAdmin = false; updateAuthUI(); closePostModal(); renderPosts(); }
+                if (err.status === 401 || err.status === 403) { await refreshSession(); closePostModal(); }
                 alert(err.message);
             }
         }
 
         async function deletePost(id) {
-            if (!isAdmin || !confirm('Delete this mod post?')) return;
+            if (!can('delete') || !confirm('Delete this mod post?')) return;
             try { await api('/api/posts/' + id, { method: 'DELETE' }); await loadPosts(); }
             catch (err) { alert(err.message); }
         }
@@ -653,14 +946,14 @@
                             <a href="${esc(safeUrl(post.fileLink))}" target="_blank" rel="noopener noreferrer" class="flex-grow py-2 px-4 rounded-xl border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 text-center font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-download text-xs"></i> Get File
                             </a>
-                            ${isAdmin ? `
+                            ${can('edit') ? `
                                 <button onclick="openPostModal(${post.id})" title="Edit Post" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
                                     <i class="fa-solid fa-pen-to-square"></i>
-                                </button>
+                                </button>` : ''}
+                            ${can('delete') ? `
                                 <button onclick="deletePost(${post.id})" title="Delete Post" class="p-2 border border-red-500/30 bg-black/60 rounded-xl hover:border-red-500 text-red-400 transition">
                                     <i class="fa-solid fa-trash"></i>
-                                </button>
-                            ` : ''}
+                                </button>` : ''}
                         </div>
                     </div>
                 </div>
