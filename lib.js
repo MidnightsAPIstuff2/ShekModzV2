@@ -1,12 +1,37 @@
 'use strict';
 const crypto = require('node:crypto');
+const { promisify } = require('node:util');
 const { createClient } = require('@libsql/client');
+
+const scrypt = promisify(crypto.scrypt);
 
 const SESSION_TTL_S = 60 * 60 * 24 * 7; // 7 days
 const STATUSES = ['Tested & Working', 'Not Tested', 'Not Working'];
 const THEMES = ['summer', 'fall', 'winter', 'spring'];
 const ANNOUNCE_TYPES = ['popup', 'bar'];
 const ANNOUNCE_MAX = 500;
+
+/* ---------- Roles & permissions ----------
+   The owner (whoever knows ADMIN_PASSWORD) is not an account: they can do everything,
+   and they are the only one who can manage accounts (roles, permissions, bans). */
+const PERMISSIONS = [
+  { key: 'post', label: 'Post new mods' },
+  { key: 'edit', label: 'Edit mods' },
+  { key: 'delete', label: 'Delete mods' },
+  { key: 'announce', label: 'Send announcements' },
+  { key: 'theme', label: 'Change site theme' },
+];
+const PERM_KEYS = PERMISSIONS.map((p) => p.key);
+const ROLES = {
+  member: { label: 'Member', perms: [] },
+  mod_maker: { label: 'Mod Maker', perms: ['post'] },
+  moderator: { label: 'Moderator', perms: ['delete'] },
+  admin: { label: 'Admin', perms: PERM_KEYS },
+  custom: { label: 'Custom', perms: null }, // picked by the owner, stored per account
+};
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_BAN_DAYS = 7;
+const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
 
 /* ---------- Database (libSQL: Turso in production, a local file in dev) ---------- */
 let client;
@@ -21,6 +46,17 @@ function getDb() {
   if (!ready) {
     ready = (async () => {
       await client.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+      await client.execute(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        username_lower TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'member',
+        permissions TEXT NOT NULL DEFAULT '',
+        banned_until INTEGER NOT NULL DEFAULT 0,
+        ban_reason TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (date('now'))
+      )`);
       await client.execute(`CREATE TABLE IF NOT EXISTS posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -46,9 +82,24 @@ function getDb() {
   return ready.then(() => client);
 }
 
-/* ---------- Auth: password from env, stateless HMAC-signed session cookie ---------- */
+/* ---------- Passwords (scrypt, salted) ---------- */
+const DUMMY_SALT = Buffer.alloc(16, 7);
+async function hashPw(pw) {
+  const salt = crypto.randomBytes(16);
+  const h = await scrypt(pw, salt, 64);
+  return `${salt.toString('hex')}:${h.toString('hex')}`;
+}
+async function checkPw(pw, stored) {
+  const [saltHex, hashHex] = String(stored).split(':');
+  const expected = Buffer.from(hashHex || '', 'hex');
+  if (!expected.length) return false;
+  const actual = await scrypt(pw, Buffer.from(saltHex, 'hex'), expected.length);
+  return crypto.timingSafeEqual(actual, expected);
+}
+
+/* ---------- Auth: owner (ADMIN_PASSWORD) and accounts ---------- */
 const sha = (s) => crypto.createHash('sha256').update(s).digest();
-function passwordOk(input) {
+function ownerPasswordOk(input) {
   const real = process.env.ADMIN_PASSWORD;
   if (!real || typeof input !== 'string') return false;
   return crypto.timingSafeEqual(sha(input), sha(real));
@@ -70,7 +121,7 @@ function parseCookies(req) {
   });
   return out;
 }
-function isAdmin(req) {
+function ownerFromCookie(req) {
   if (!process.env.ADMIN_PASSWORD) return false;
   const token = parseCookies(req).shek_session;
   if (!token) return false;
@@ -82,7 +133,84 @@ function isAdmin(req) {
   return Number(parts[1]) > Date.now() / 1000;
 }
 
-/* ---------- Login rate limit (best effort: per warm serverless instance) ---------- */
+// Account sessions are signed with a random key kept in the database, so anyone who signs up
+// (and so holds a signed cookie) can never use it to work out ADMIN_PASSWORD or SESSION_SECRET.
+let userKeyCache;
+async function getUserKey() {
+  if (userKeyCache) return userKeyCache;
+  const db = await getDb();
+  const read = () => db.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['user_session_key'] });
+  let r = await read();
+  if (!r.rows[0]) {
+    await db.execute({ sql: 'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', args: ['user_session_key', crypto.randomBytes(32).toString('hex')] });
+    r = await read();
+  }
+  userKeyCache = Buffer.from(String(r.rows[0].value), 'hex');
+  return userKeyCache;
+}
+async function makeUserToken(id) {
+  const body = `u1.${id}.${Math.floor(Date.now() / 1000) + SESSION_TTL_S}`;
+  const sig = crypto.createHmac('sha256', await getUserKey()).update(body).digest('base64url');
+  return `${body}.${sig}`;
+}
+async function userIdFromCookie(req) {
+  const token = parseCookies(req).shek_session;
+  if (!token) return null;
+  const p = token.split('.');
+  if (p.length !== 4 || p[0] !== 'u1') return null;
+  const expected = crypto.createHmac('sha256', await getUserKey()).update(`${p[0]}.${p[1]}.${p[2]}`).digest();
+  let given; try { given = Buffer.from(p[3], 'base64url'); } catch { return null; }
+  if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) return null;
+  if (!(Number(p[2]) > Date.now() / 1000)) return null;
+  const id = Number(p[1]);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+function effectivePerms(u) {
+  const role = ROLES[u.role] ? u.role : 'member';
+  if (role === 'custom') return String(u.permissions || '').split(',').filter((p) => PERM_KEYS.includes(p));
+  return ROLES[role].perms.slice();
+}
+function authForUser(u) {
+  const until = Number(u.banned_until);
+  if (until > Date.now()) return { owner: false, banned: { until, reason: String(u.ban_reason || '') }, perms: new Set() };
+  return { owner: false, user: u, perms: new Set(effectivePerms(u)) };
+}
+// Who is making this request? Permissions are read from the database on every request,
+// so a role change or ban takes effect immediately, without the person logging in again.
+async function getAuth(req) {
+  if (ownerFromCookie(req)) return { owner: true, perms: new Set(PERM_KEYS) };
+  const id = await userIdFromCookie(req);
+  if (!id) return null;
+  const db = await getDb();
+  const u = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [id] })).rows[0];
+  return u ? authForUser(u) : null;
+}
+function sessionPayload(auth) {
+  if (!auth) return { admin: false, owner: false, user: null, permissions: [] };
+  if (auth.owner) return { admin: true, owner: true, user: null, permissions: [...auth.perms] };
+  if (auth.banned) return { admin: false, owner: false, user: null, permissions: [], banned: auth.banned };
+  const role = ROLES[auth.user.role] ? auth.user.role : 'member';
+  return {
+    admin: false, owner: false,
+    user: { id: Number(auth.user.id), username: auth.user.username, role, roleLabel: ROLES[role].label },
+    permissions: [...auth.perms],
+  };
+}
+function userForOwner(u) {
+  const until = Number(u.banned_until);
+  const banned = until > Date.now();
+  const role = ROLES[u.role] ? u.role : 'member';
+  return {
+    id: Number(u.id), username: u.username, role, roleLabel: ROLES[role].label,
+    permissions: effectivePerms(u),
+    bannedUntil: banned ? until : 0, banReason: banned ? String(u.ban_reason || '') : '',
+    createdAt: u.created_at,
+  };
+}
+const banMessage = (b) => `You are banned until ${new Date(b.until).toUTCString()}.` + (b.reason ? ` Reason: ${b.reason}` : '');
+
+/* ---------- Rate limits (best effort: per warm serverless instance) ---------- */
 const attempts = new Map();
 const rateLimited = (ip) => {
   const now = Date.now();
@@ -91,6 +219,13 @@ const rateLimited = (ip) => {
   return rec.length >= 8;
 };
 const recordFailure = (ip) => attempts.get(ip).push(Date.now());
+const signups = new Map();
+const signupLimited = (ip) => {
+  const now = Date.now();
+  const rec = (signups.get(ip) || []).filter((t) => now - t < 60 * 60 * 1000);
+  signups.set(ip, rec);
+  return rec.length >= 5;
+};
 
 /* ---------- Helpers ---------- */
 function send(res, code, body, headers = {}) {
@@ -110,6 +245,26 @@ async function readJson(req) {
   const chunks = []; let size = 0;
   for await (const c of req) { size += c.length; if (size > 100_000) throw new Error('too large'); chunks.push(c); }
   return JSON.parse(Buffer.concat(chunks).toString() || '{}');
+}
+function badOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return false;
+  let host; try { host = new URL(origin).host; } catch { host = ''; }
+  return host !== req.headers.host;
+}
+// Sends the right error and returns false when the caller may not do `perm`.
+function requirePerm(res, auth, perm) {
+  if (auth && auth.perms.has(perm)) return true;
+  if (!auth) send(res, 401, { error: 'Log in first.' });
+  else if (auth.banned) send(res, 403, { error: banMessage(auth.banned), banned: auth.banned });
+  else send(res, 403, { error: "You don't have permission to do that." });
+  return false;
+}
+function requireOwner(res, auth) {
+  if (auth && auth.owner) return true;
+  if (!auth) send(res, 401, { error: 'Log in first.' });
+  else send(res, 403, { error: 'Only the owner can do that.' });
+  return false;
 }
 function validatePost(b) {
   const clean = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -135,21 +290,111 @@ async function handleApi(req, res) {
   const method = req.method;
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
   const secure = process.env.VERCEL || process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  const sessionCookie = (token) => `shek_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL_S}${secure}`;
 
-  if (pathname === '/api/session' && method === 'GET') return send(res, 200, { admin: isAdmin(req) });
+  /* ----- session, sign-up, login, logout ----- */
+  if (pathname === '/api/session' && method === 'GET') return send(res, 200, sessionPayload(await getAuth(req)));
+
+  if (pathname === '/api/register' && method === 'POST') {
+    if (signupLimited(ip)) return send(res, 429, { error: 'Too many sign-ups from your connection. Try again later.' });
+    let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+    const username = typeof body.username === 'string' ? body.username.trim() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!USERNAME_RE.test(username)) return send(res, 400, { error: 'Username must be 3-20 characters: letters, numbers and underscores only.' });
+    if (password.length < 8 || password.length > 128) return send(res, 400, { error: 'Password must be 8-128 characters.' });
+    signups.get(ip).push(Date.now());
+    const db = await getDb();
+    const hash = await hashPw(password);
+    let ins;
+    try {
+      ins = await db.execute({ sql: 'INSERT INTO users (username, username_lower, password_hash) VALUES (?,?,?)', args: [username, username.toLowerCase(), hash] });
+    } catch (e) {
+      if (/UNIQUE|constraint/i.test(String(e && e.message))) return send(res, 409, { error: 'That username is already taken.' });
+      throw e;
+    }
+    const id = Number(ins.lastInsertRowid);
+    const u = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [id] })).rows[0];
+    return send(res, 201, sessionPayload(authForUser(u)), { 'Set-Cookie': sessionCookie(await makeUserToken(id)) });
+  }
 
   if (pathname === '/api/login' && method === 'POST') {
-    if (!process.env.ADMIN_PASSWORD) return send(res, 500, { error: 'Server is missing the ADMIN_PASSWORD environment variable.' });
     if (rateLimited(ip)) return send(res, 429, { error: 'Too many attempts. Try again later.' });
     let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
-    if (!passwordOk(body.password)) { recordFailure(ip); return send(res, 401, { error: 'Invalid passcode.' }); }
-    return send(res, 200, { admin: true }, { 'Set-Cookie': `shek_session=${makeToken()}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL_S}${secure}` });
+
+    if (typeof body.username === 'string' && body.username.trim() !== '') {
+      // account login
+      const password = typeof body.password === 'string' ? body.password : '';
+      const db = await getDb();
+      const u = (await db.execute({ sql: 'SELECT * FROM users WHERE username_lower = ?', args: [body.username.trim().toLowerCase()] })).rows[0];
+      let ok = false;
+      if (password.length <= 128) {
+        if (u) ok = await checkPw(password, u.password_hash);
+        else await scrypt(password, DUMMY_SALT, 64); // same work either way, so timing doesn't reveal which usernames exist
+      }
+      if (!ok) { recordFailure(ip); return send(res, 401, { error: 'Invalid username or password.' }); }
+      const auth = authForUser(u);
+      if (auth.banned) return send(res, 403, { error: banMessage(auth.banned), banned: auth.banned });
+      return send(res, 200, sessionPayload(auth), { 'Set-Cookie': sessionCookie(await makeUserToken(Number(u.id))) });
+    }
+
+    // owner login (ADMIN_PASSWORD)
+    if (!process.env.ADMIN_PASSWORD) return send(res, 500, { error: 'Server is missing the ADMIN_PASSWORD environment variable.' });
+    if (!ownerPasswordOk(body.password)) { recordFailure(ip); return send(res, 401, { error: 'Invalid passcode.' }); }
+    return send(res, 200, sessionPayload({ owner: true, perms: new Set(PERM_KEYS) }), { 'Set-Cookie': sessionCookie(makeToken()) });
   }
 
   if (pathname === '/api/logout' && method === 'POST') {
-    return send(res, 200, { admin: false }, { 'Set-Cookie': `shek_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure}` });
+    return send(res, 200, sessionPayload(null), { 'Set-Cookie': `shek_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure}` });
   }
 
+  /* ----- account management (owner only): roles, permissions, bans ----- */
+  const um = pathname.match(/^\/api\/users\/(\d+)$/);
+  if (pathname === '/api/users' || um) {
+    const auth = await getAuth(req);
+    if (!requireOwner(res, auth)) return;
+    if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+    const db = await getDb();
+
+    if (pathname === '/api/users' && method === 'GET') {
+      const rows = (await db.execute('SELECT * FROM users ORDER BY id DESC')).rows;
+      const roles = Object.fromEntries(Object.entries(ROLES).map(([k, r]) => [k, { label: r.label, perms: r.perms }]));
+      return send(res, 200, { users: rows.map(userForOwner), roles, permissions: PERMISSIONS, maxBanDays: MAX_BAN_DAYS });
+    }
+
+    if (um && method === 'PATCH') {
+      let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      const sets = []; const args = [];
+
+      if (body.role !== undefined) {
+        if (typeof body.role !== 'string' || !ROLES[body.role]) return send(res, 400, { error: 'Unknown role.' });
+        let list = '';
+        if (body.role === 'custom') {
+          if (!Array.isArray(body.permissions) || !body.permissions.every((p) => typeof p === 'string' && PERM_KEYS.includes(p))) return send(res, 400, { error: 'Unknown permission.' });
+          list = [...new Set(body.permissions)].join(',');
+        }
+        sets.push('role = ?', 'permissions = ?'); args.push(body.role, list);
+      }
+
+      if (body.unban === true && body.ban !== undefined) return send(res, 400, { error: 'Choose either ban or unban.' });
+      if (body.unban === true) {
+        sets.push('banned_until = 0', "ban_reason = ''");
+      } else if (body.ban !== undefined) {
+        const b = body.ban && typeof body.ban === 'object' ? body.ban : {};
+        const days = Number(b.days);
+        if (!Number.isInteger(days) || days < 1 || days > MAX_BAN_DAYS) return send(res, 400, { error: `Ban length must be 1 to ${MAX_BAN_DAYS} days.` });
+        const reason = typeof b.reason === 'string' ? b.reason.trim().slice(0, 200) : '';
+        sets.push('banned_until = ?', 'ban_reason = ?'); args.push(Date.now() + days * DAY_MS, reason);
+      }
+
+      if (!sets.length) return send(res, 400, { error: 'Nothing to change.' });
+      const up = await db.execute({ sql: `UPDATE users SET ${sets.join(', ')} WHERE id = ?`, args: [...args, Number(um[1])] });
+      if (!up.rowsAffected) return send(res, 404, { error: 'No such account.' });
+      const row = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [Number(um[1])] })).rows[0];
+      return send(res, 200, { user: userForOwner(row) });
+    }
+  }
+
+  /* ----- site theme ----- */
   if (pathname === '/api/theme' && method === 'GET') {
     const db = await getDb();
     const r = await db.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['theme'] });
@@ -158,9 +403,8 @@ async function handleApi(req, res) {
   }
 
   if (pathname === '/api/theme' && method === 'PUT') {
-    if (!isAdmin(req)) return send(res, 401, { error: 'Admin login required.' });
-    const origin = req.headers.origin;
-    if (origin) { let host; try { host = new URL(origin).host; } catch { host = ''; } if (host !== req.headers.host) return send(res, 403, { error: 'Bad origin.' }); }
+    if (!requirePerm(res, await getAuth(req), 'theme')) return;
+    if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
     let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
     if (!THEMES.includes(body.theme)) return send(res, 400, { error: 'Unknown theme.' });
     const db = await getDb();
@@ -168,6 +412,7 @@ async function handleApi(req, res) {
     return send(res, 200, { theme: body.theme });
   }
 
+  /* ----- announcements ----- */
   if (pathname === '/api/announcement' && method === 'GET') {
     const db = await getDb();
     const r = await db.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['announcement'] });
@@ -178,9 +423,8 @@ async function handleApi(req, res) {
   }
 
   if (pathname === '/api/announcement' && (method === 'PUT' || method === 'DELETE')) {
-    if (!isAdmin(req)) return send(res, 401, { error: 'Admin login required.' });
-    const origin = req.headers.origin;
-    if (origin) { let host; try { host = new URL(origin).host; } catch { host = ''; } if (host !== req.headers.host) return send(res, 403, { error: 'Bad origin.' }); }
+    if (!requirePerm(res, await getAuth(req), 'announce')) return;
+    if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
     const db = await getDb();
     if (method === 'DELETE') {
       await db.execute({ sql: 'DELETE FROM settings WHERE key = ?', args: ['announcement'] });
@@ -197,6 +441,7 @@ async function handleApi(req, res) {
     return send(res, 200, { active: true, ...a });
   }
 
+  /* ----- mod posts ----- */
   if (pathname === '/api/posts' && method === 'GET') {
     const db = await getDb();
     const r = await db.execute('SELECT * FROM posts ORDER BY id DESC');
@@ -204,13 +449,13 @@ async function handleApi(req, res) {
   }
 
   const m = pathname.match(/^\/api\/posts\/(\d+)$/);
-  if ((pathname === '/api/posts' && method === 'POST') || m) {
-    if (!isAdmin(req)) return send(res, 401, { error: 'Admin login required.' });
-    const origin = req.headers.origin;
-    if (origin) { let host; try { host = new URL(origin).host; } catch { host = ''; } if (host !== req.headers.host) return send(res, 403, { error: 'Bad origin.' }); }
+  if ((pathname === '/api/posts' && method === 'POST') || (m && (method === 'PUT' || method === 'DELETE'))) {
+    const need = !m ? 'post' : method === 'PUT' ? 'edit' : 'delete';
+    if (!requirePerm(res, await getAuth(req), need)) return;
+    if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
     const db = await getDb();
 
-    if (!m && method === 'POST') {
+    if (!m) {
       let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
       const { post, error } = validatePost(body);
       if (error) return send(res, 400, { error });
@@ -218,7 +463,7 @@ async function handleApi(req, res) {
       const row = (await db.execute({ sql: 'SELECT * FROM posts WHERE id = ?', args: [Number(ins.lastInsertRowid)] })).rows[0];
       return send(res, 201, rowToPost(row));
     }
-    if (m && method === 'PUT') {
+    if (method === 'PUT') {
       let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
       const { post, error } = validatePost(body);
       if (error) return send(res, 400, { error });
@@ -227,10 +472,8 @@ async function handleApi(req, res) {
       const row = (await db.execute({ sql: 'SELECT * FROM posts WHERE id = ?', args: [Number(m[1])] })).rows[0];
       return send(res, 200, rowToPost(row));
     }
-    if (m && method === 'DELETE') {
-      const del = await db.execute({ sql: 'DELETE FROM posts WHERE id = ?', args: [Number(m[1])] });
-      return send(res, del.rowsAffected ? 200 : 404, { ok: !!del.rowsAffected });
-    }
+    const del = await db.execute({ sql: 'DELETE FROM posts WHERE id = ?', args: [Number(m[1])] });
+    return send(res, del.rowsAffected ? 200 : 404, { ok: !!del.rowsAffected });
   }
   return send(res, 404, { error: 'Not found.' });
 }
