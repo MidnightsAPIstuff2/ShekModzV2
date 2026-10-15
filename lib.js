@@ -449,6 +449,11 @@ async function handleApi(req, res) {
   }
 
   const m = pathname.match(/^\/api\/posts\/(\d+)$/);
+  if (m && method === 'GET') {
+    const db = await getDb();
+    const r = await db.execute({ sql: 'SELECT * FROM posts WHERE id = ?', args: [Number(m[1])] });
+    return r.rows.length ? send(res, 200, rowToPost(r.rows[0])) : send(res, 404, { error: 'Not found.' });
+  }
   if ((pathname === '/api/posts' && method === 'POST') || (m && (method === 'PUT' || method === 'DELETE'))) {
     const need = !m ? 'post' : method === 'PUT' ? 'edit' : 'delete';
     if (!requirePerm(res, await getAuth(req), need)) return;
