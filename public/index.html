@@ -774,7 +774,7 @@
             $('umRole').value = u.role;
             $('umPerms').innerHTML = usersData.permissions.map((p) => `
                 <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-black text-xs font-mono text-soft/80">
-                    <input type="checkbox" data-perm="${esc(p.key)}" ${u.permissions.includes(p.key) ? 'checked' : ''}> ${esc(p.label)}
+                    <input type="checkbox" data-perm="${esc(p.key)}" onchange="onPermToggle()" ${u.permissions.includes(p.key) ? 'checked' : ''}> ${esc(p.label)}
                 </label>`).join('');
             syncPermBoxes(false);
             $('umClearBtn').classList.toggle('hidden', !u.permissions.length);   // nothing to remove
@@ -784,15 +784,25 @@
             $('umReason').value = '';
         }
 
-        // presets fix the permissions; "Custom" lets the owner tick exactly what they want
+        // Picking a role fills in its permissions. The boxes are always tickable: changing one
+        // switches the role to Custom, or to the preset whose permissions match exactly.
         function syncPermBoxes(applyPreset) {
             const role = $('umRole').value;
             const preset = usersData.roles[role] && usersData.roles[role].perms;
             document.querySelectorAll('#umPerms input[data-perm]').forEach((cb) => {
                 if (applyPreset && preset) cb.checked = preset.includes(cb.dataset.perm);
-                cb.disabled = role !== 'custom';
+                cb.disabled = false;
             });
-            $('umPermsNote').textContent = role === 'custom' ? 'Pick exactly what this account can do.' : 'Set by the role. Choose Custom to pick permissions yourself.';
+            $('umPermsNote').textContent = role === 'custom'
+                ? 'Custom: exactly the ticked permissions.'
+                : 'Tick or untick anything to customise. The role switches to Custom (or the matching role) on its own.';
+        }
+
+        function onPermToggle() {
+            const ticked = [...document.querySelectorAll('#umPerms input[data-perm]:checked')].map((cb) => cb.dataset.perm).sort().join(',');
+            const match = Object.entries(usersData.roles).find(([, r]) => r.perms && r.perms.slice().sort().join(',') === ticked);
+            $('umRole').value = match ? match[0] : 'custom';
+            syncPermBoxes(false);
         }
 
         async function patchUser(body, okMessage) {
@@ -892,6 +902,23 @@
             catch (err) { alert(err.message); }
         }
 
+        function modLink(id) { return location.origin + '/mod/' + id; }
+        async function copyModLink(id, btn) {
+            const url = modLink(id);
+            let ok = false;
+            try { await navigator.clipboard.writeText(url); ok = true; } catch (e) {
+                const t = document.createElement('textarea');
+                t.value = url; t.style.position = 'fixed'; t.style.opacity = '0';
+                document.body.appendChild(t); t.select();
+                try { ok = document.execCommand('copy'); } catch (e2) {}
+                t.remove();
+            }
+            if (!ok) { prompt('Copy this link:', url); return; }
+            const old = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            setTimeout(() => { btn.innerHTML = old; }, 1400);
+        }
+
         function getStatusBadgeHtml(status) {
             if (status === 'Tested & Working') {
                 return `<span class="px-2.5 py-1 rounded-full bg-white text-black font-extrabold text-[10px] font-mono tracking-wider shadow-[0_0_12px_rgba(var(--accent-rgb)/0.9)] flex items-center gap-1.5">
@@ -935,7 +962,7 @@
                             <div>${getStatusBadgeHtml(post.status)}</div>
                             <span class="text-[10px] font-mono text-soft/50">${esc(post.date)}</span>
                         </div>
-                        <h2 class="text-xl font-bold font-mono tracking-wide text-white mb-2 group-hover:text-soft transition">${esc(post.title)}</h2>
+                        <h2 class="text-xl font-bold font-mono tracking-wide text-white mb-2 group-hover:text-soft transition"><a href="/mod/${post.id}">${esc(post.title)}</a></h2>
                         <p class="text-soft/60 text-xs font-mono leading-relaxed mb-6 line-clamp-3">${esc(post.desc)}</p>
                     </div>
                     <div>
@@ -946,6 +973,9 @@
                             <a href="${esc(safeUrl(post.fileLink))}" target="_blank" rel="noopener noreferrer" class="flex-grow py-2 px-4 rounded-xl border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 text-center font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-download text-xs"></i> Get File
                             </a>
+                            <button onclick="copyModLink(${post.id}, this)" title="Copy link to this mod" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
+                                <i class="fa-solid fa-link"></i>
+                            </button>
                             ${can('edit') ? `
                                 <button onclick="openPostModal(${post.id})" title="Edit Post" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
                                     <i class="fa-solid fa-pen-to-square"></i>
