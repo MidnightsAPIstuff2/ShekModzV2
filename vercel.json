@@ -1,3 +1,6 @@
 {
-  "rewrites": [{ "source": "/api/:route*", "destination": "/api/index.js?route=:route*" }]
+  "rewrites": [
+    { "source": "/api/:route*", "destination": "/api/index.js?route=:route*" },
+    { "source": "/mod/:id", "destination": "/mod/index.html" }
+  ]
 }
