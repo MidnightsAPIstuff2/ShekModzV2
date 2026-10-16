@@ -527,7 +527,13 @@ async function handleApi(req, res) {
   }
 
   /* ----- mod posts ----- */
+  const lockedOut = async () => {   // banned accounts can't see the mods
+    const a = await getAuth(req);
+    if (a && a.banned) { send(res, 403, { error: banMessage(a.banned), banned: a.banned }); return true; }
+    return false;
+  };
   if (pathname === '/api/posts' && method === 'GET') {
+    if (await lockedOut()) return;
     const db = await getDb();
     const r = await db.execute('SELECT * FROM posts ORDER BY id DESC');
     return send(res, 200, r.rows.map(rowToPost));
@@ -535,6 +541,7 @@ async function handleApi(req, res) {
 
   const m = pathname.match(/^\/api\/posts\/(\d+)$/);
   if (m && method === 'GET') {
+    if (await lockedOut()) return;
     const db = await getDb();
     const r = await db.execute({ sql: 'SELECT * FROM posts WHERE id = ?', args: [Number(m[1])] });
     return r.rows.length ? send(res, 200, rowToPost(r.rows[0])) : send(res, 404, { error: 'Not found.' });
