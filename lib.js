@@ -57,6 +57,13 @@ function getDb() {
         ban_reason TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT (date('now'))
       )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS pages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        html TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (date('now'))
+      )`);
       await client.execute(`CREATE TABLE IF NOT EXISTS posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -236,14 +243,36 @@ function send(res, code, body, headers = {}) {
   for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
   res.end(JSON.stringify(body));
 }
-async function readJson(req) {
+function sendHtml(res, code, html) {
+  res.statusCode = code;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'no-cache');
+  // Owner-made pages run in a sandbox: scripts, forms and popups work, but the page can never
+  // touch this site's login cookie or API (opaque origin).
+  res.setHeader('Content-Security-Policy', 'sandbox allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads');
+  res.end(html);
+}
+const PAGE_MAX = 1_000_000;
+function slugify(t) {
+  return String(t).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50).replace(/-+$/, '') || 'page';
+}
+function validatePage(b) {
+  const title = typeof b.title === 'string' ? b.title.trim().slice(0, 120) : '';
+  const html = typeof b.html === 'string' ? b.html : '';
+  if (!title) return { error: 'Give the page a title.' };
+  if (!html.trim()) return { error: 'Paste some HTML.' };
+  if (html.length > PAGE_MAX) return { error: 'That HTML is too big (max ~1 MB).' };
+  return { title, html };
+}
+async function readJson(req, max = 100_000) {
   if (req.body !== undefined && req.body !== null) {
     if (typeof req.body === 'string') return JSON.parse(req.body || '{}');
     if (Buffer.isBuffer(req.body)) return JSON.parse(req.body.toString() || '{}');
     return req.body;
   }
   const chunks = []; let size = 0;
-  for await (const c of req) { size += c.length; if (size > 100_000) throw new Error('too large'); chunks.push(c); }
+  for await (const c of req) { size += c.length; if (size > max) throw new Error('too large'); chunks.push(c); }
   return JSON.parse(Buffer.concat(chunks).toString() || '{}');
 }
 function badOrigin(req) {
@@ -439,6 +468,62 @@ async function handleApi(req, res) {
     const a = { id: Date.now().toString(36) + crypto.randomBytes(3).toString('hex'), type, message };
     await db.execute({ sql: 'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', args: ['announcement', JSON.stringify(a)] });
     return send(res, 200, { active: true, ...a });
+  }
+
+  /* ----- custom pages (owner-made, permanent, served at /p/<slug>) ----- */
+  let pm = pathname.match(/^\/api\/p\/([a-z0-9-]{1,60})$/);
+  if (pm && method === 'GET') {
+    const db = await getDb();
+    const r = await db.execute({ sql: 'SELECT html FROM pages WHERE slug = ?', args: [pm[1]] });
+    if (!r.rows.length) return sendHtml(res, 404, '<!DOCTYPE html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not found</title><body style="background:#000;color:#22ff66;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center"><div>Page not found.<br><br><a style="color:#22ff66" href="/">Home</a></div>');
+    return sendHtml(res, 200, String(r.rows[0].html));
+  }
+  pm = pathname.match(/^\/api\/pages(?:\/(\d+))?$/);
+  if (pm) {
+    const auth = await getAuth(req);
+    if (!requireOwner(res, auth)) return;
+    if (method !== 'GET' && badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+    const db = await getDb();
+    const id = pm[1] ? Number(pm[1]) : null;
+    const toPage = (r, withHtml) => ({ id: Number(r.id), slug: r.slug, title: r.title, date: r.created_at, ...(withHtml ? { html: r.html } : {}) });
+    if (method === 'GET' && !id) {
+      const r = await db.execute('SELECT id, slug, title, created_at FROM pages ORDER BY id DESC');
+      return send(res, 200, r.rows.map((x) => toPage(x, false)));
+    }
+    if (method === 'GET') {
+      const r = await db.execute({ sql: 'SELECT * FROM pages WHERE id = ?', args: [id] });
+      return r.rows.length ? send(res, 200, toPage(r.rows[0], true)) : send(res, 404, { error: 'Not found.' });
+    }
+    if (method === 'POST' && !id) {
+      let body; try { body = await readJson(req, PAGE_MAX + 50_000); } catch { return send(res, 400, { error: 'Bad request (HTML too big?).' }); }
+      const v = validatePage(body);
+      if (v.error) return send(res, 400, { error: v.error });
+      const base = slugify(v.title);
+      for (let i = 1; i <= 50; i++) {
+        const slug = i === 1 ? base : `${base}-${i}`;
+        try {
+          const ins = await db.execute({ sql: 'INSERT INTO pages (slug, title, html) VALUES (?,?,?)', args: [slug, v.title, v.html] });
+          const row = (await db.execute({ sql: 'SELECT * FROM pages WHERE id = ?', args: [Number(ins.lastInsertRowid)] })).rows[0];
+          return send(res, 201, toPage(row, false));
+        } catch (e) {
+          if (!/unique|constraint/i.test(String(e && e.message))) throw e;
+        }
+      }
+      return send(res, 409, { error: 'Could not find a free link for that title.' });
+    }
+    if (method === 'PUT' && id) {
+      let body; try { body = await readJson(req, PAGE_MAX + 50_000); } catch { return send(res, 400, { error: 'Bad request (HTML too big?).' }); }
+      const v = validatePage(body);
+      if (v.error) return send(res, 400, { error: v.error });
+      const up = await db.execute({ sql: 'UPDATE pages SET title = ?, html = ? WHERE id = ?', args: [v.title, v.html, id] });
+      if (!up.rowsAffected) return send(res, 404, { error: 'Not found.' });
+      const row = (await db.execute({ sql: 'SELECT * FROM pages WHERE id = ?', args: [id] })).rows[0];
+      return send(res, 200, toPage(row, false));
+    }
+    if (method === 'DELETE' && id) {
+      const del = await db.execute({ sql: 'DELETE FROM pages WHERE id = ?', args: [id] });
+      return send(res, del.rowsAffected ? 200 : 404, { ok: !!del.rowsAffected });
+    }
   }
 
   /* ----- mod posts ----- */
