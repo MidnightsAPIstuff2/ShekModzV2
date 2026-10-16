@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShekModz Community</title>
-    <style>:root{--accent:#22ff66;--accent-rgb:34 255 102;--accent-mid:#14a83c;--accent-dark:#0b5a20;--soft-rgb:187 247 208;--bg:#010502;--bg2:#020a04}</style>
+    <title>Shek Modz</title>
     <script src="/theme.js"></script>
     <script src="/announce.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -109,6 +108,14 @@
         }
 
 
+        /* banned accounts: mods are blurred behind chains and a lock */
+        #modsWrap.locked #modsInner { filter: blur(10px) saturate(.5) brightness(.7); pointer-events: none; user-select: none; }
+        #modsWrap.locked { min-height: 520px; }
+        .chain { position: absolute; left: -10%; width: 120%; height: 36px; pointer-events: none;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='36' viewBox='0 0 56 36'%3E%3Crect x='3' y='5' width='42' height='26' rx='13' fill='none' stroke='%23111' stroke-width='9'/%3E%3Crect x='3' y='5' width='42' height='26' rx='13' fill='none' stroke='%23aab0b8' stroke-width='6'/%3E%3Crect x='7' y='9' width='34' height='18' rx='9' fill='none' stroke='%23e5e7eb' stroke-width='1.5' opacity='.7'/%3E%3C/svg%3E") repeat-x left center / auto 100%;
+            filter: drop-shadow(0 3px 4px rgba(0,0,0,.8)) drop-shadow(0 0 8px rgba(var(--accent-rgb)/0.55)); }
+        .lock-icon { filter: drop-shadow(0 4px 6px rgba(0,0,0,.9)) drop-shadow(0 0 14px rgba(var(--accent-rgb)/0.7)); }
+
         .theme-btn { padding: 2px 8px; border: 1px solid transparent; border-radius: 8px; font-size: 15px; line-height: 1.5; background: transparent; cursor: pointer; transition: all .2s; }
         .theme-btn:hover { background: rgba(var(--accent-rgb)/0.15); }
         .theme-btn.active { border-color: var(--accent); background: rgba(var(--accent-rgb)/0.2); box-shadow: 0 0 10px rgba(var(--accent-rgb)/0.5); }
@@ -132,8 +139,8 @@
         <header class="w-full border-b border-white/20 bg-black/80 backdrop-blur-md sticky top-0 z-40">
             <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap gap-2 justify-between items-center">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-white text-black font-black flex items-center justify-center font-mono shadow-[0_0_15px_rgba(var(--accent-rgb)/0.8)]">SC</div>
-                    <span class="font-black tracking-widest text-xl chrome-gradient uppercase font-mono">ShekModz Community</span>
+                    <div class="w-8 h-8 rounded-full bg-white text-black font-black flex items-center justify-center font-mono shadow-[0_0_15px_rgba(var(--accent-rgb)/0.8)]">SM</div>
+                    <span class="font-black tracking-widest text-xl chrome-gradient uppercase font-mono">Shek Modz</span>
                 </div>
                 
                 <div class="flex items-center gap-3">
@@ -167,8 +174,8 @@
                         <i class="fa-solid fa-bullhorn text-xs"></i> Announce
                     </button>
 
-                    <button id="createPostBtn" onclick="openPostModal()" class="px-4 py-1.5 rounded-lg bg-white text-black hover:bg-soft transition-all duration-300 font-mono text-xs uppercase tracking-wider font-extrabold shadow-[0_0_15px_rgba(var(--accent-rgb)/0.7)] flex items-center gap-2">
-                        <i class="fa-solid fa-plus"></i> Post a Mod
+                    <button id="createPostBtn" onclick="openPostModal()" class="hidden px-4 py-1.5 rounded-lg bg-white text-black hover:bg-soft transition-all duration-300 font-mono text-xs uppercase tracking-wider font-extrabold shadow-[0_0_15px_rgba(var(--accent-rgb)/0.7)] flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Create Mod
                     </button>
                 </div>
             </div>
@@ -184,12 +191,12 @@
                     /// discord.gg/yfA43ADx ///
                 </div>
                 
-                <h1 class="text-4xl md:text-7xl font-black tracking-tighter uppercase mb-4 chrome-gradient animate-pulse-glow">
-                    ShekModz Community
+                <h1 class="text-5xl md:text-8xl font-black tracking-tighter uppercase mb-4 chrome-gradient animate-pulse-glow">
+                    Shek Modz
                 </h1>
                 
                 <p class="max-w-2xl mx-auto text-soft/60 text-sm md:text-base font-mono mb-8 tracking-wide">
-                    CHAT WITH EVERYONE, SHARE YOUR OWN MODS, FIND NEW ONES
+                    BEST GAME INFO PULLS, BACKEND LEAKS, APKS, AND GENERAL MODS WEBSITE
                 </p>
 
                 <!-- Stats Strip -->
@@ -203,24 +210,17 @@
                         <div class="text-[10px] uppercase font-mono text-soft/50">Working</div>
                     </div>
                     <div class="text-center">
-                        <div class="text-2xl font-bold font-mono text-white"><span class="inline-block w-2.5 h-2.5 rounded-full bg-white animate-ping align-middle"></span></div>
-                        <div class="text-[10px] uppercase font-mono text-soft/50">Chat live</div>
+                        <div class="text-2xl font-bold font-mono text-white">v2</div>
+                        <div class="text-[10px] uppercase font-mono text-soft/50">Version</div>
                     </div>
                 </div>
             </div>
         </section>
 
         <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-10">
-
-            <!-- phone-size tabs: on big screens both columns show side by side -->
-            <div class="lg:hidden grid grid-cols-2 gap-2 mb-6">
-                <button id="tabMods" onclick="setMobileTab('mods')" class="py-2 rounded-lg border border-white bg-white text-black text-xs font-mono font-bold uppercase transition"><i class="fa-solid fa-cubes mr-1"></i> Mods</button>
-                <button id="tabChat" onclick="setMobileTab('chat')" class="py-2 rounded-lg border border-white/20 bg-black text-xs font-mono text-soft/80 uppercase transition"><i class="fa-solid fa-comments mr-1"></i> Chat</button>
-            </div>
-
-            <div class="lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
-            <div id="modsCol" class="lg:col-span-2 lg:block">
-
+            
+            <div id="modsWrap" class="relative">
+            <div id="modsInner">
             <!-- Filter Bar -->
             <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 p-4 rounded-xl border border-white/15 bg-black/80 glass-panel">
                 <div class="relative w-full sm:w-80">
@@ -239,42 +239,42 @@
             </div>
 
             <!-- Posts Grid -->
-            <div id="postsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div id="postsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Posts populated via JS -->
             </div>
 
             <div id="noPostsMsg" class="hidden text-center py-20 border border-dashed border-white/20 rounded-2xl bg-black/40">
                 <i class="fa-solid fa-ghost text-4xl text-soft/40 mb-3"></i>
-                <p class="font-mono text-sm text-soft/60">No mods yet. Be the first to post one!</p>
+                <p class="font-mono text-sm text-soft/60">No matching mods</p>
             </div>
             </div>
 
-            <aside id="chatCol" class="hidden lg:block lg:sticky lg:top-24 mt-0">
-                <div class="glass-panel rounded-2xl border border-white/20 glow-box-sm flex flex-col h-[70vh] min-h-[420px] lg:h-[calc(100vh-8rem)] lg:max-h-[720px] overflow-hidden">
-                    <div class="px-4 py-3 border-b border-white/15 flex items-center justify-between">
-                        <div class="flex items-center gap-2 font-mono text-sm font-bold uppercase tracking-wider text-white">
-                            <span class="w-2 h-2 rounded-full bg-white animate-ping"></span> Global Chat
-                        </div>
-                        <span class="text-[10px] font-mono text-soft/50">everyone can read</span>
-                    </div>
-                    <div id="chatList" class="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 text-sm" aria-live="polite"></div>
-                    <div id="chatEmpty" class="hidden px-4 pb-4 text-center font-mono text-xs text-soft/50">No messages yet. Say hi!</div>
-                    <div class="border-t border-white/15 p-3">
-                        <form id="chatForm" onsubmit="sendChat(event)" class="hidden flex gap-2">
-                            <input type="text" id="chatInput" maxlength="300" autocomplete="off" placeholder="Message everyone..." class="min-w-0 flex-1 px-3 py-2 bg-black/70 border border-white/25 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
-                            <button type="submit" id="chatSendBtn" class="px-4 py-2 rounded-lg bg-white text-black font-mono text-xs font-black uppercase hover:bg-soft transition" title="Send"><i class="fa-solid fa-paper-plane"></i></button>
-                        </form>
-                        <button id="chatLoginBtn" type="button" onclick="toggleAuthModal()" class="w-full py-2 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition font-mono text-xs font-bold uppercase">Log in or sign up to chat</button>
-                        <p id="chatError" class="hidden mt-2 text-[11px] font-mono text-red-400 break-words"></p>
+            <!-- shown over the (blurred) mods when the logged-in account is banned -->
+            <div id="banLock" class="hidden absolute inset-0 overflow-hidden rounded-2xl z-20" role="alert">
+                <div class="chain" style="top:14%"></div>
+                <div class="chain" style="top:84%"></div>
+                <div class="chain" style="top:50%;transform:translateY(-50%) rotate(22deg)"></div>
+                <div class="chain" style="top:50%;transform:translateY(-50%) rotate(-22deg)"></div>
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
+                    <svg viewBox="0 0 100 120" class="lock-icon w-28 h-32" aria-hidden="true">
+                        <path d="M26 54 V38 a24 24 0 0 1 48 0 V54" fill="none" stroke="#b8bec6" stroke-width="10" stroke-linecap="round"/>
+                        <rect x="12" y="52" width="76" height="60" rx="10" fill="#6b7280" stroke="#d1d5db" stroke-width="3"/>
+                        <rect x="12" y="52" width="76" height="22" rx="10" fill="#9ca3af" opacity=".35"/>
+                        <circle cx="50" cy="80" r="8" fill="#111827"/>
+                        <rect x="46" y="84" width="8" height="16" rx="3" fill="#111827"/>
+                    </svg>
+                    <div class="mt-3 px-5 py-3 rounded-xl bg-black/80 border border-white/40 glow-box-sm max-w-sm">
+                        <div class="font-mono font-black uppercase tracking-widest text-white">Locked</div>
+                        <div id="banLockText" class="font-mono text-xs text-soft/80 mt-1 break-words"></div>
                     </div>
                 </div>
-            </aside>
+            </div>
             </div>
         </main>
 
         <footer class="w-full border-t border-white/15 py-8 bg-black mt-auto">
             <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-mono text-soft/50">
-                <div>&copy; 2026 SHEKMODZ COMMUNITY.</div>
+                <div>&copy; 2026 SHEK MODZ. ALL RIGHTS RESERVED.</div>
                 <div class="flex gap-6">
                     <span class="hover:text-white cursor-pointer transition">PRIVACY</span>
                     <span class="hover:text-white cursor-pointer transition">TERMS</span>
@@ -295,7 +295,7 @@
                     <i class="fa-solid fa-lock text-white text-lg"></i>
                 </div>
                 <h3 class="text-xl font-black font-mono uppercase tracking-wider text-white">ACCOUNT</h3>
-                <p id="authSub" class="text-xs font-mono text-soft/60 mt-1">LOG IN TO YOUR COMMUNITY ACCOUNT</p>
+                <p id="authSub" class="text-xs font-mono text-soft/60 mt-1">LOG IN TO YOUR SHEK MODZ ACCOUNT</p>
             </div>
 
             <div class="grid grid-cols-3 gap-2 mb-5">
@@ -515,8 +515,8 @@
             </button>
 
             <div class="mb-6">
-                <h3 id="modalTitle" class="text-2xl font-black font-mono uppercase tracking-wider chrome-gradient">POST A MOD</h3>
-                <p class="text-xs font-mono text-soft/60 mt-1">SHARE A MOD WITH THE COMMUNITY. YOUR USERNAME IS SHOWN AS THE AUTHOR.</p>
+                <h3 id="modalTitle" class="text-2xl font-black font-mono uppercase tracking-wider chrome-gradient">CREATE NEW MOD POST</h3>
+                <p class="text-xs font-mono text-soft/60 mt-1">PUBLISH MODIFICATIONS TO THE SHEK ARCHIVE</p>
             </div>
 
             <form onsubmit="handleSavePost(event)" class="space-y-4">
@@ -525,6 +525,12 @@
                 <div>
                     <label class="block text-xs font-mono text-soft/80 uppercase mb-1">MOD TITLE *</label>
                     <input type="text" id="postTitleInput" required placeholder="e.g., CyberHUD Overhaul v3.0"
+                        class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">AUTHOR NAME *</label>
+                    <input type="text" id="postAuthorInput" required placeholder="e.g., NeonDev"
                         class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
                 </div>
 
@@ -566,7 +572,7 @@
         let activeFilter = 'ALL';
         let postsLoaded = false;
         // who is logged in: the owner (ADMIN_PASSWORD), an account, or nobody. What they may do comes from the server.
-        let me = null, isOwner = false, perms = new Set();
+        let me = null, isOwner = false, perms = new Set(), banned = null;
         const can = (p) => perms.has(p);
         const $ = (id) => document.getElementById(id);
 
@@ -594,7 +600,6 @@
             await refreshSession();
             markTheme();
             await loadPosts();
-            pollChat();
         });
 
         function applySession(s) {
@@ -603,14 +608,21 @@
             me = s.user || null;
             perms = new Set(s.permissions || []);
             const bn = $('banNotice');
-            if (s.banned) {
-                bn.textContent = 'Your account is banned until ' + new Date(s.banned.until).toLocaleString() + (s.banned.reason ? '. Reason: ' + s.banned.reason : '.');
+            const wasBanned = !!banned;
+            banned = s.banned || null;
+            if (banned) {
+                const msg = 'Your account is banned until ' + new Date(banned.until).toLocaleString() + (banned.reason ? '. Reason: ' + banned.reason : '.');
+                bn.textContent = msg;
                 bn.classList.remove('hidden');
+                $('banLockText').textContent = msg;
             } else {
                 bn.classList.add('hidden');
             }
+            $('modsWrap').classList.toggle('locked', !!banned);
+            $('banLock').classList.toggle('hidden', !banned);
             updateAuthUI();
-            if (postsLoaded) renderPosts();
+            if (wasBanned && !banned) loadPosts();       // ban ended or lifted: get the real mods
+            else if (postsLoaded) renderPosts();
         }
 
         async function refreshSession() {
@@ -624,8 +636,7 @@
             badge.classList.toggle('flex', loggedIn);
             $('whoLabel').textContent = isOwner ? 'OWNER' : me ? me.username + ' \u00b7 ' + me.roleLabel : '';
             $('openAuthBtn').classList.toggle('hidden', loggedIn);
-            updateChatUI();
-            if (postsLoaded) renderPosts();
+            $('createPostBtn').classList.toggle('hidden', !can('post'));
             $('announceBtn').classList.toggle('hidden', !can('announce'));
             $('usersBtn').classList.toggle('hidden', !isOwner);
             $('createPageBtn').classList.toggle('hidden', !isOwner);
@@ -801,7 +812,7 @@
         }
 
         function setAuthTab(tab) {
-            const subs = { login: 'LOG IN TO YOUR COMMUNITY ACCOUNT', signup: 'CREATE A FREE ACCOUNT', owner: 'OWNER ACCESS' };
+            const subs = { login: 'LOG IN TO YOUR SHEK MODZ ACCOUNT', signup: 'CREATE A FREE ACCOUNT', owner: 'OWNER ACCESS' };
             ['login', 'signup', 'owner'].forEach((t) => {
                 $('auth' + t[0].toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== tab);
                 document.querySelector('[data-auth-tab="' + t + '"]').className = t === tab ? ACTIVE_TAB : INACTIVE_TAB;
@@ -990,6 +1001,7 @@
         async function unbanUser() { await patchUser({ unban: true }, 'Ban lifted.'); }
 
         async function loadPosts() {
+            if (banned) { posts = []; postsLoaded = true; renderPosts(); return; }
             try { posts = await api('/api/posts'); } catch (e) { posts = []; }
             postsLoaded = true;
             renderPosts();
@@ -1008,15 +1020,15 @@
         }
 
         function openPostModal(editId = null) {
-            if (!isOwner && !me) { toggleAuthModal(); showAuthError('Log in or sign up to post a mod.'); return; }
             const modalTitle = document.getElementById('modalTitle');
             const post = editId ? posts.find(p => p.id === editId) : null;
             document.getElementById('postId').value = post ? post.id : '';
             document.getElementById('postTitleInput').value = post ? post.title : '';
+            document.getElementById('postAuthorInput').value = post ? post.author : '';
             document.getElementById('postStatusInput').value = post ? post.status : 'Tested & Working';
             document.getElementById('postDescInput').value = post ? post.desc : '';
             document.getElementById('postFileInput').value = post ? post.fileLink : '';
-            modalTitle.innerText = post ? "EDIT MOD POST" : "POST A MOD";
+            modalTitle.innerText = post ? "EDIT MOD POST" : "CREATE NEW MOD POST";
             document.getElementById('postModal').classList.remove('hidden');
         }
 
@@ -1029,6 +1041,7 @@
             const id = document.getElementById('postId').value;
             const body = JSON.stringify({
                 title: document.getElementById('postTitleInput').value,
+                author: document.getElementById('postAuthorInput').value,
                 status: document.getElementById('postStatusInput').value,
                 description: document.getElementById('postDescInput').value,
                 file_link: document.getElementById('postFileInput').value,
@@ -1044,14 +1057,8 @@
         }
 
         async function deletePost(id) {
-            if (!confirm('Delete this mod post?')) return;
+            if (!can('delete') || !confirm('Delete this mod post?')) return;
             try { await api('/api/posts/' + id, { method: 'DELETE' }); await loadPosts(); }
-            catch (err) { alert(err.message); }
-        }
-
-        const isMine = (post) => !!me && post.authorId === me.id;
-        async function togglePin(id, pinned) {
-            try { await api('/api/posts/' + id + '/pin', { method: 'POST', body: JSON.stringify({ pinned }) }); await loadPosts(); }
             catch (err) { alert(err.message); }
         }
 
@@ -1092,6 +1099,20 @@
             const q = document.getElementById('searchInput').value.toLowerCase();
             const noPostsMsg = document.getElementById('noPostsMsg');
 
+            if (banned) {   // the real mods are never shown (or even sent): blurred placeholders only
+                noPostsMsg.classList.add('hidden');
+                document.getElementById('statTotal').innerText = '--';
+                document.getElementById('statWorking').innerText = '--';
+                container.innerHTML = Array.from({ length: 6 }, () => `
+                    <div class="glass-panel rounded-2xl border border-white/15 p-6 h-56 flex flex-col gap-3">
+                        <div class="w-24 h-5 rounded-full bg-white/60"></div>
+                        <div class="w-3/4 h-6 rounded bg-white/40"></div>
+                        <div class="w-full h-3 rounded bg-soft/30"></div><div class="w-5/6 h-3 rounded bg-soft/30"></div>
+                        <div class="mt-auto w-full h-9 rounded-xl border border-white/30"></div>
+                    </div>`).join('');
+                return;
+            }
+
             const filtered = posts.filter(p =>
                 (activeFilter === 'ALL' || p.status === activeFilter) &&
                 (p.title.toLowerCase().includes(q) || p.author.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q))
@@ -1112,7 +1133,7 @@
                     <div class="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl pointer-events-none group-hover:bg-white/10 transition"></div>
                     <div>
                         <div class="flex justify-between items-start gap-2 mb-4">
-                            <div class="flex items-center gap-2">${getStatusBadgeHtml(post.status)}${post.pinned ? '<span class="text-[10px] font-mono text-white" title="Pinned"><i class="fa-solid fa-thumbtack"></i> PINNED</span>' : ''}</div>
+                            <div>${getStatusBadgeHtml(post.status)}</div>
                             <span class="text-[10px] font-mono text-soft/50">${esc(post.date)}</span>
                         </div>
                         <h2 class="text-xl font-bold font-mono tracking-wide text-white mb-2 group-hover:text-soft transition"><a href="/mod/${post.id}">${esc(post.title)}</a></h2>
@@ -1129,15 +1150,11 @@
                             <button onclick="copyModLink(${post.id}, this)" title="Copy link to this mod" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
                                 <i class="fa-solid fa-link"></i>
                             </button>
-                            ${can('pin') ? `
-                                <button onclick="togglePin(${post.id}, ${!post.pinned})" title="${post.pinned ? 'Unpin' : 'Pin to top'}" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white ${post.pinned ? 'text-white' : 'text-soft/60'} transition">
-                                    <i class="fa-solid fa-thumbtack"></i>
-                                </button>` : ''}
-                            ${can('edit') || isMine(post) ? `
+                            ${can('edit') ? `
                                 <button onclick="openPostModal(${post.id})" title="Edit Post" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </button>` : ''}
-                            ${can('delete') || isMine(post) ? `
+                            ${can('delete') ? `
                                 <button onclick="deletePost(${post.id})" title="Delete Post" class="p-2 border border-red-500/30 bg-black/60 rounded-xl hover:border-red-500 text-red-400 transition">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>` : ''}
@@ -1146,114 +1163,6 @@
                 </div>
             `).join('');
         }
-
-        /* ---------- global chat ---------- */
-        let chatMsgs = [], chatAfter = 0, chatSince = 0, chatTimer = null, chatLastActivity = Date.now(), chatBusy = false;
-        const URL_RE = /https?:\/\/[^\s<]+/g;
-        function linkify(t) {
-            let out = '', last = 0;
-            t.replace(URL_RE, (u, i) => {
-                out += esc(t.slice(last, i)) + '<a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer nofollow" class="underline break-all text-white">' + esc(u) + '</a>';
-                last = i + u.length;
-                return u;
-            });
-            return out + esc(t.slice(last));
-        }
-        const chatErr = (m) => { const e = $('chatError'); e.textContent = m || ''; e.classList.toggle('hidden', !m); };
-        function updateChatUI() {
-            const loggedIn = isOwner || !!me;
-            $('chatForm').classList.toggle('hidden', !loggedIn);
-            $('chatForm').classList.toggle('flex', loggedIn);
-            $('chatLoginBtn').classList.toggle('hidden', loggedIn);
-            renderChat(false);
-        }
-        function canDeleteMsg(m) { return can('delete') || (!!me && m.userId === me.id); }
-        function renderChat(forceBottom) {
-            const list = $('chatList');
-            if (!list) return;
-            const nearBottom = forceBottom || list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-            $('chatEmpty').classList.toggle('hidden', chatMsgs.length > 0);
-            const badge = { owner: 'OWNER', admin: 'ADMIN', moderator: 'MOD', mod_maker: 'MOD MAKER' };
-            list.innerHTML = chatMsgs.map((m) => `
-                <div class="group flex items-start gap-2">
-                    <div class="min-w-0 flex-1">
-                        <div class="flex flex-wrap items-baseline gap-x-2 font-mono">
-                            <span class="font-bold text-white break-all">${esc(m.user)}</span>
-                            ${badge[m.role] ? `<span class="px-1.5 rounded border border-white/40 text-[9px] text-soft/80">${badge[m.role]}</span>` : ''}
-                            <span class="text-[10px] text-soft/40">${esc(new Date(m.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))}</span>
-                        </div>
-                        <div class="text-soft/80 break-words">${linkify(m.body)}</div>
-                    </div>
-                    ${canDeleteMsg(m) ? `<button onclick="deleteChat(${m.id})" title="Delete message" class="opacity-40 group-hover:opacity-100 text-red-400 text-xs p-1"><i class="fa-solid fa-trash"></i></button>` : ''}
-                </div>`).join('');
-            if (nearBottom) list.scrollTop = list.scrollHeight;
-        }
-        function mergeChat(msgs, removed) {
-            const have = new Set(chatMsgs.map((m) => m.id));
-            let added = false;
-            msgs.forEach((m) => { if (!have.has(m.id)) { chatMsgs.push(m); added = true; } });
-            const gone = new Set(removed || []);
-            const before = chatMsgs.length;
-            if (gone.size) chatMsgs = chatMsgs.filter((m) => !gone.has(m.id));
-            chatMsgs.sort((a, b) => a.id - b.id);
-            if (chatMsgs.length > 150) chatMsgs = chatMsgs.slice(-150);
-            return added || chatMsgs.length !== before;
-        }
-        function scheduleChat() {
-            clearTimeout(chatTimer);
-            if (document.hidden) return;
-            const idle = Date.now() - chatLastActivity;
-            chatTimer = setTimeout(pollChat, idle < 30000 ? 3000 : idle < 120000 ? 6000 : 15000);
-        }
-        async function pollChat() {
-            if (chatBusy) return;
-            chatBusy = true;
-            try {
-                const d = await api('/api/chat' + (chatAfter ? '?after=' + chatAfter + '&since=' + chatSince : ''));
-                const first = !chatAfter;
-                chatSince = d.now - 5000;
-                const changed = mergeChat(d.messages, d.removed);
-                if (d.messages.length) { chatAfter = Math.max(chatAfter, ...d.messages.map((m) => m.id)); if (!first) chatLastActivity = Date.now(); }
-                if (changed || first) renderChat(first);
-            } catch (e) {}
-            chatBusy = false;
-            scheduleChat();
-        }
-        async function sendChat(e) {
-            e.preventDefault();
-            const input = $('chatInput'), text = input.value.trim();
-            if (!text) return;
-            chatErr('');
-            $('chatSendBtn').disabled = true;
-            try {
-                const m = await api('/api/chat', { method: 'POST', body: JSON.stringify({ body: text }) });
-                input.value = '';
-                mergeChat([m], []);
-                chatLastActivity = Date.now();
-                renderChat(true);
-                scheduleChat();
-            } catch (err) {
-                chatErr(err.message);
-                if (err.status === 401 || err.status === 403) await refreshSession();
-            }
-            $('chatSendBtn').disabled = false;
-            input.focus();
-        }
-        async function deleteChat(id) {
-            try {
-                await api('/api/chat/' + id, { method: 'DELETE' });
-                mergeChat([], [id]);
-                renderChat(false);
-            } catch (err) { chatErr(err.message); }
-        }
-        function setMobileTab(t) {
-            $('modsCol').classList.toggle('hidden', t === 'chat');
-            $('chatCol').classList.toggle('hidden', t !== 'chat');
-            $('tabMods').className = t === 'mods' ? ACTIVE_TAB : INACTIVE_TAB;
-            $('tabChat').className = t === 'chat' ? ACTIVE_TAB : INACTIVE_TAB;
-            if (t === 'chat') renderChat(true);
-        }
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) { clearTimeout(chatTimer); pollChat(); } });
 
         function initCanvas() {
             const canvas = document.getElementById('bgCanvas');
