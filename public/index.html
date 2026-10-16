@@ -158,6 +158,10 @@
                         <i class="fa-solid fa-users text-xs"></i> Users
                     </button>
 
+                    <button id="createPageBtn" onclick="openPagesModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Create a permanent page from your own HTML (owner only)">
+                        <i class="fa-solid fa-file-code text-xs"></i> Create Page
+                    </button>
+
                     <button id="announceBtn" onclick="openAnnounceModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Send an announcement to everyone">
                         <i class="fa-solid fa-bullhorn text-xs"></i> Announce
                     </button>
@@ -376,6 +380,40 @@
         </div>
     </div>
 
+    <div id="pagesModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-3xl w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
+            <button onclick="closePagesModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white" title="Close">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="mb-5">
+                <h3 class="text-2xl font-black font-mono uppercase tracking-wider chrome-gradient">CUSTOM PAGES</h3>
+                <p class="text-xs font-mono text-soft/60 mt-1">PASTE HTML, GET A PERMANENT LINK. ONLY YOU (THE OWNER) CAN DO THIS.</p>
+            </div>
+
+            <form onsubmit="handlePageSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">PAGE TITLE *</label>
+                    <input type="text" id="pageTitleInput" maxlength="120" required class="w-full bg-black border border-white/30 rounded-xl px-4 py-2.5 font-mono text-sm text-white focus:outline-none focus:border-white" placeholder="e.g. Install Guide">
+                    <p class="text-[11px] font-mono text-soft/50 mt-1" id="pageLinkPreview"></p>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">HTML *</label>
+                    <textarea id="pageHtmlInput" rows="12" spellcheck="false" required class="w-full bg-black border border-white/30 rounded-xl px-4 py-3 font-mono text-xs text-white focus:outline-none focus:border-white" placeholder="<!DOCTYPE html>&#10;<html>...paste your whole page here...</html>"></textarea>
+                </div>
+                <p id="pageError" class="hidden text-xs font-mono text-red-400"></p>
+                <div class="flex gap-3">
+                    <button type="submit" id="pageSubmitBtn" class="flex-grow py-3 rounded-xl bg-white text-black font-mono text-xs font-extrabold uppercase tracking-wider hover:bg-soft transition">Publish Page</button>
+                    <button type="button" id="pageCancelEditBtn" onclick="resetPageForm()" class="hidden px-5 py-3 rounded-xl border border-white/30 font-mono text-xs uppercase tracking-wider hover:bg-white/10 transition">Cancel edit</button>
+                </div>
+            </form>
+
+            <div class="mt-8 pt-5 border-t border-white/15">
+                <div class="text-xs font-mono text-soft/60 uppercase mb-3">Your pages</div>
+                <div id="pagesList" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="announceModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
         <div class="max-w-lg w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
             <button onclick="closeAnnounceModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
@@ -561,6 +599,8 @@
             $('createPostBtn').classList.toggle('hidden', !can('post'));
             $('announceBtn').classList.toggle('hidden', !can('announce'));
             $('usersBtn').classList.toggle('hidden', !isOwner);
+            $('createPageBtn').classList.toggle('hidden', !isOwner);
+            if (!isOwner) closePagesModal();
             const picker = $('themePicker');
             picker.classList.toggle('hidden', !can('theme'));
             picker.classList.toggle('flex', can('theme'));
@@ -591,6 +631,85 @@
             document.getElementById('announceModal').classList.remove('hidden');
             input.focus();
         }
+
+        /* ---------- custom pages (owner only) ---------- */
+        let pagesData = [], editingPageId = null;
+        const pageErr = (m) => { const e = $('pageError'); e.textContent = m || ''; e.classList.toggle('hidden', !m); };
+        const slugPreview = (t) => (String(t).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50).replace(/-+$/, '') || 'page');
+        function updateLinkPreview() {
+            const t = $('pageTitleInput').value.trim();
+            $('pageLinkPreview').textContent = editingPageId ? 'The link stays the same when you edit.' : (t ? 'Link: ' + location.origin + '/p/' + slugPreview(t) : '');
+        }
+        function resetPageForm() {
+            editingPageId = null;
+            $('pageTitleInput').value = ''; $('pageHtmlInput').value = '';
+            $('pageSubmitBtn').textContent = 'Publish Page';
+            $('pageCancelEditBtn').classList.add('hidden');
+            pageErr(''); updateLinkPreview();
+        }
+        async function loadPages() {
+            try { pagesData = await api('/api/pages'); } catch (err) { pageErr(err.message); pagesData = []; }
+            const box = $('pagesList');
+            if (!pagesData.length) { box.innerHTML = '<p class="text-xs font-mono text-soft/40">No pages yet.</p>'; return; }
+            box.innerHTML = pagesData.map((p) => `
+                <div class="flex items-center gap-2 p-3 rounded-xl border border-white/15 bg-black/50">
+                    <div class="flex-grow min-w-0">
+                        <div class="font-mono text-sm text-white truncate">${esc(p.title)}</div>
+                        <div class="font-mono text-[11px] text-soft/50 truncate">/p/${esc(p.slug)} · ${esc(p.date)}</div>
+                    </div>
+                    <a href="/p/${esc(p.slug)}" target="_blank" rel="noopener" title="Open" class="p-2 border border-white/20 rounded-xl hover:border-white text-soft/70 hover:text-white transition"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                    <button type="button" onclick="copyPageLink('${esc(p.slug)}', this)" title="Copy link" class="p-2 border border-white/20 rounded-xl hover:border-white text-soft/70 hover:text-white transition"><i class="fa-solid fa-link"></i></button>
+                    <button type="button" onclick="editPage(${p.id})" title="Edit" class="p-2 border border-white/20 rounded-xl hover:border-white text-soft/70 hover:text-white transition"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button type="button" onclick="deletePage(${p.id})" title="Delete" class="p-2 border border-red-500/30 rounded-xl hover:border-red-500 text-red-400 transition"><i class="fa-solid fa-trash"></i></button>
+                </div>`).join('');
+        }
+        async function openPagesModal() {
+            if (!isOwner) return;
+            resetPageForm();
+            $('pagesModal').classList.remove('hidden');
+            await loadPages();
+        }
+        function closePagesModal() { $('pagesModal').classList.add('hidden'); }
+        async function handlePageSubmit(e) {
+            e.preventDefault(); pageErr('');
+            const btn = $('pageSubmitBtn'); btn.disabled = true;
+            try {
+                const body = JSON.stringify({ title: $('pageTitleInput').value, html: $('pageHtmlInput').value });
+                const saved = await api(editingPageId ? '/api/pages/' + editingPageId : '/api/pages', { method: editingPageId ? 'PUT' : 'POST', body });
+                const wasEdit = !!editingPageId;
+                resetPageForm();
+                await loadPages();
+                if (!wasEdit) { try { await navigator.clipboard.writeText(location.origin + '/p/' + saved.slug); } catch (e2) {} }
+                pageErr('');
+                $('pageLinkPreview').textContent = (wasEdit ? 'Saved. ' : 'Published and link copied: ') + location.origin + '/p/' + saved.slug;
+            } catch (err) { pageErr(err.message); }
+            btn.disabled = false;
+        }
+        async function editPage(id) {
+            pageErr('');
+            try {
+                const p = await api('/api/pages/' + id);
+                editingPageId = id;
+                $('pageTitleInput').value = p.title; $('pageHtmlInput').value = p.html;
+                $('pageSubmitBtn').textContent = 'Save Changes';
+                $('pageCancelEditBtn').classList.remove('hidden');
+                updateLinkPreview();
+                $('pageTitleInput').scrollIntoView({ block: 'center' });
+            } catch (err) { pageErr(err.message); }
+        }
+        async function deletePage(id) {
+            const p = pagesData.find((x) => x.id === id);
+            if (!confirm('Delete "' + (p ? p.title : 'this page') + '"? Its link will stop working.')) return;
+            try { await api('/api/pages/' + id, { method: 'DELETE' }); if (editingPageId === id) resetPageForm(); await loadPages(); }
+            catch (err) { pageErr(err.message); }
+        }
+        async function copyPageLink(slug, btn) {
+            const url = location.origin + '/p/' + slug;
+            try { await navigator.clipboard.writeText(url); } catch (e) { prompt('Copy this link:', url); return; }
+            const old = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            setTimeout(() => { btn.innerHTML = old; }, 1400);
+        }
+        document.addEventListener('input', (e) => { if (e.target && e.target.id === 'pageTitleInput') updateLinkPreview(); });
 
         function closeAnnounceModal() {
             document.getElementById('announceModal').classList.add('hidden');
