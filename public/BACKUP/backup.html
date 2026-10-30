@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shek Modz</title>
+    <script src="/theme.js"></script>
+    <script src="/announce.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        white: 'rgb(var(--accent-rgb) / <alpha-value>)',
+                        soft: 'rgb(var(--soft-rgb) / <alpha-value>)',
+                        dark: 'var(--bg2)',
+                        cardDark: '#0d0d0e',
+                        borderGlow: 'rgba(var(--accent-rgb)/0.25)',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        body {
+            background-color: var(--bg);
+            color: var(--accent);
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Heavy visual effects */
+        .glow-heavy {
+            box-shadow: 0 0 25px rgba(var(--accent-rgb)/0.45), inset 0 0 15px rgba(var(--accent-rgb)/0.2);
+        }
+
+        .glow-text {
+            text-shadow: 0 0 12px rgba(var(--accent-rgb)/0.8), 0 0 25px rgba(var(--accent-rgb)/0.4);
+        }
+
+        .glow-box-sm {
+            box-shadow: 0 0 10px rgba(var(--accent-rgb)/0.2);
+        }
+
+        .glow-box-sm:hover {
+            box-shadow: 0 0 20px rgba(var(--accent-rgb)/0.6);
+            border-color: var(--accent);
+        }
+
+        .chrome-gradient {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-mid) 50%, var(--accent-dark) 75%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .chrome-bg {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-mid) 50%, var(--accent-dark) 100%);
+        }
+
+        .glass-panel {
+            background: rgba(15, 15, 18, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(var(--accent-rgb)/0.15);
+        }
+
+        .scanline {
+            background: linear-gradient(
+                to bottom,
+                rgba(var(--accent-rgb)/0),
+                rgba(var(--accent-rgb)/0) 50%,
+                rgba(0, 0, 0, 0.4) 50%,
+                rgba(0, 0, 0, 0.4)
+            );
+            background-size: 100% 4px;
+        }
+
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(var(--accent-rgb)/0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(var(--accent-rgb)/0.04) 1px, transparent 1px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333333;
+            border-radius: 4px;
+            border: 1px solid #555;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+
+        /* banned accounts: mods are blurred behind chains and a lock */
+        #modsWrap.locked #modsInner { filter: blur(10px) saturate(.5) brightness(.7); pointer-events: none; user-select: none; }
+        #modsWrap.locked { min-height: 520px; }
+        .chain { position: absolute; left: -10%; width: 120%; height: 36px; pointer-events: none;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='36' viewBox='0 0 56 36'%3E%3Crect x='3' y='5' width='42' height='26' rx='13' fill='none' stroke='%23111' stroke-width='9'/%3E%3Crect x='3' y='5' width='42' height='26' rx='13' fill='none' stroke='%23aab0b8' stroke-width='6'/%3E%3Crect x='7' y='9' width='34' height='18' rx='9' fill='none' stroke='%23e5e7eb' stroke-width='1.5' opacity='.7'/%3E%3C/svg%3E") repeat-x left center / auto 100%;
+            filter: drop-shadow(0 3px 4px rgba(0,0,0,.8)) drop-shadow(0 0 8px rgba(var(--accent-rgb)/0.55)); }
+        .lock-icon { filter: drop-shadow(0 4px 6px rgba(0,0,0,.9)) drop-shadow(0 0 14px rgba(var(--accent-rgb)/0.7)); }
+
+        .theme-btn { padding: 2px 8px; border: 1px solid transparent; border-radius: 8px; font-size: 15px; line-height: 1.5; background: transparent; cursor: pointer; transition: all .2s; }
+        .theme-btn:hover { background: rgba(var(--accent-rgb)/0.15); }
+        .theme-btn.active { border-color: var(--accent); background: rgba(var(--accent-rgb)/0.2); box-shadow: 0 0 10px rgba(var(--accent-rgb)/0.5); }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.6; filter: drop-shadow(0 0 15px rgba(var(--accent-rgb)/0.6)); }
+            50% { opacity: 1; filter: drop-shadow(0 0 30px rgba(var(--accent-rgb)/0.9)); }
+        }
+
+        .animate-pulse-glow {
+            animation: pulseGlow 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="relative min-h-screen grid-bg">
+
+    <canvas id="bgCanvas" class="fixed top-0 left-0 w-full h-full pointer-events-none z-0 opacity-40"></canvas>
+
+    <div class="relative z-10 flex flex-col min-h-screen">
+        
+        <header class="w-full border-b border-white/20 bg-black/80 backdrop-blur-md sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap gap-2 justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-white text-black font-black flex items-center justify-center font-mono shadow-[0_0_15px_rgba(var(--accent-rgb)/0.8)]">SM</div>
+                    <span class="font-black tracking-widest text-xl chrome-gradient uppercase font-mono">Shek Modz</span>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <div id="adminBadge" class="hidden items-center gap-2 px-3 py-1 bg-white/10 border border-white/40 rounded-full text-xs font-mono glow-box-sm">
+                        <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                        <span id="whoLabel" class="text-white font-bold tracking-wider truncate max-w-[12rem]"></span>
+                        <button onclick="logout()" title="Log out" class="ml-2 text-soft/60 hover:text-white"><i class="fa-solid fa-right-from-bracket"></i></button>
+                    </div>
+
+                    <button id="openAuthBtn" onclick="toggleAuthModal()" class="px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2">
+                        <i class="fa-solid fa-user text-xs"></i> Log in / Sign up
+                    </button>
+                    
+                    <div id="themePicker" class="hidden items-center gap-1 px-2 py-1 border border-white/30 rounded-lg bg-black/60" title="Site theme: everyone sees the one you pick">
+                        <span class="text-[10px] font-mono uppercase text-soft/60 mr-1">Theme</span>
+                        <button class="theme-btn" data-theme-btn="summer" onclick="setSiteTheme('summer')" title="Summer">☀️</button>
+                        <button class="theme-btn" data-theme-btn="fall" onclick="setSiteTheme('fall')" title="Fall / Halloween">🎃</button>
+                        <button class="theme-btn" data-theme-btn="winter" onclick="setSiteTheme('winter')" title="Winter">❄️</button>
+                        <button class="theme-btn" data-theme-btn="spring" onclick="setSiteTheme('spring')" title="Spring">🌸</button>
+                    </div>
+
+                    <button id="usersBtn" onclick="openUsersModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Manage accounts: roles, permissions, bans">
+                        <i class="fa-solid fa-users text-xs"></i> Users
+                    </button>
+
+                    <button id="createPageBtn" onclick="openPagesModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Create a permanent page from your own HTML (owner only)">
+                        <i class="fa-solid fa-file-code text-xs"></i> Create Page
+                    </button>
+
+                    <button id="announceBtn" onclick="openAnnounceModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Send an announcement to everyone">
+                        <i class="fa-solid fa-bullhorn text-xs"></i> Announce
+                    </button>
+
+                    <button id="createPostBtn" onclick="openPostModal()" class="hidden px-4 py-1.5 rounded-lg bg-white text-black hover:bg-soft transition-all duration-300 font-mono text-xs uppercase tracking-wider font-extrabold shadow-[0_0_15px_rgba(var(--accent-rgb)/0.7)] flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Create Mod
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div id="banNotice" class="hidden w-full px-4 py-3 text-center text-xs font-mono text-red-300 bg-red-950/70 border-b border-red-500/40" role="alert"></div>
+
+        <section class="relative w-full border-b border-white/15 py-16 md:py-24 bg-gradient-to-b from-black via-zinc-950 to-black overflow-hidden scanline">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--accent-rgb)/0.12)_0,transparent_70%)] pointer-events-none"></div>
+            
+            <div class="max-w-5xl mx-auto px-4 text-center relative z-10">
+                <div class="inline-block px-4 py-1 mb-4 border border-white/30 rounded-full bg-white/5 backdrop-blur-md text-xs font-mono tracking-widest uppercase text-soft/80 glow-box-sm">
+                    /// discord.gg/yfA43ADx ///
+                </div>
+                
+                <h1 class="text-5xl md:text-8xl font-black tracking-tighter uppercase mb-4 chrome-gradient animate-pulse-glow">
+                    Shek Modz
+                </h1>
+                
+                <p class="max-w-2xl mx-auto text-soft/60 text-sm md:text-base font-mono mb-8 tracking-wide">
+                    BEST GAME INFO PULLS, BACKEND LEAKS, APKS, AND GENERAL MODS WEBSITE
+                </p>
+
+                <!-- Stats Strip -->
+                <div class="grid grid-cols-3 max-w-lg mx-auto gap-4 p-3 rounded-xl border border-white/10 bg-black/60 glass-panel">
+                    <div class="text-center">
+                        <div id="statTotal" class="text-2xl font-bold font-mono text-white">0</div>
+                        <div class="text-[10px] uppercase font-mono text-soft/50">Total Mods</div>
+                    </div>
+                    <div class="text-center border-x border-white/10">
+                        <div id="statWorking" class="text-2xl font-bold font-mono text-white glow-text">0</div>
+                        <div class="text-[10px] uppercase font-mono text-soft/50">Working</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold font-mono text-white">v2</div>
+                        <div class="text-[10px] uppercase font-mono text-soft/50">Version</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-10">
+            
+            <div id="modsWrap" class="relative">
+            <div id="modsInner">
+            <!-- Filter Bar -->
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 p-4 rounded-xl border border-white/15 bg-black/80 glass-panel">
+                <div class="relative w-full sm:w-80">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-soft/50 text-xs"></i>
+                    <input type="text" id="searchInput" oninput="renderPosts()" placeholder="SEARCH MODS OR AUTHORS..." 
+                        class="w-full pl-9 pr-4 py-2 bg-black/60 border border-white/20 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition">
+                </div>
+
+                <div class="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                    <span class="text-xs font-mono text-soft/50 uppercase mr-1">Status:</span>
+                    <button onclick="setFilter('ALL')" id="filterAll" class="px-3 py-1.5 rounded-lg border border-white bg-white text-black text-xs font-mono font-bold transition">ALL</button>
+                    <button onclick="setFilter('Tested & Working')" id="filterWorking" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition">WORKING</button>
+                    <button onclick="setFilter('Not Tested')" id="filterNotTested" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition">UNTESTED</button>
+                    <button onclick="setFilter('Not Working')" id="filterNotWorking" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition">BROKEN</button>
+                </div>
+            </div>
+
+            <!-- Posts Grid -->
+            <div id="postsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Posts populated via JS -->
+            </div>
+
+            <div id="noPostsMsg" class="hidden text-center py-20 border border-dashed border-white/20 rounded-2xl bg-black/40">
+                <i class="fa-solid fa-ghost text-4xl text-soft/40 mb-3"></i>
+                <p class="font-mono text-sm text-soft/60">No matching mods</p>
+            </div>
+            </div>
+
+            <!-- shown over the (blurred) mods when the logged-in account is banned -->
+            <div id="banLock" class="hidden absolute inset-0 overflow-hidden rounded-2xl z-20" role="alert">
+                <div class="chain" style="top:14%"></div>
+                <div class="chain" style="top:84%"></div>
+                <div class="chain" style="top:50%;transform:translateY(-50%) rotate(22deg)"></div>
+                <div class="chain" style="top:50%;transform:translateY(-50%) rotate(-22deg)"></div>
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
+                    <svg viewBox="0 0 100 120" class="lock-icon w-28 h-32" aria-hidden="true">
+                        <path d="M26 54 V38 a24 24 0 0 1 48 0 V54" fill="none" stroke="#b8bec6" stroke-width="10" stroke-linecap="round"/>
+                        <rect x="12" y="52" width="76" height="60" rx="10" fill="#6b7280" stroke="#d1d5db" stroke-width="3"/>
+                        <rect x="12" y="52" width="76" height="22" rx="10" fill="#9ca3af" opacity=".35"/>
+                        <circle cx="50" cy="80" r="8" fill="#111827"/>
+                        <rect x="46" y="84" width="8" height="16" rx="3" fill="#111827"/>
+                    </svg>
+                    <div class="mt-3 px-5 py-3 rounded-xl bg-black/80 border border-white/40 glow-box-sm max-w-sm">
+                        <div class="font-mono font-black uppercase tracking-widest text-white">Locked</div>
+                        <div id="banLockText" class="font-mono text-xs text-soft/80 mt-1 break-words"></div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </main>
+
+        <footer class="w-full border-t border-white/15 py-8 bg-black mt-auto">
+            <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-mono text-soft/50">
+                <div>&copy; 2026 SHEK MODZ. ALL RIGHTS RESERVED.</div>
+                <div class="flex gap-6">
+                    <span class="hover:text-white cursor-pointer transition">PRIVACY</span>
+                    <span class="hover:text-white cursor-pointer transition">TERMS</span>
+                    <span class="hover:text-white cursor-pointer transition">API</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <div id="authModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="max-w-md w-full glass-panel border border-white/30 rounded-2xl p-6 relative glow-heavy">
+            <button onclick="toggleAuthModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="text-center mb-5">
+                <div class="w-12 h-12 rounded-full border border-white/40 bg-white/10 flex items-center justify-center mx-auto mb-3 shadow-[0_0_15px_rgba(var(--accent-rgb)/0.5)]">
+                    <i class="fa-solid fa-lock text-white text-lg"></i>
+                </div>
+                <h3 class="text-xl font-black font-mono uppercase tracking-wider text-white">ACCOUNT</h3>
+                <p id="authSub" class="text-xs font-mono text-soft/60 mt-1">LOG IN TO YOUR SHEK MODZ ACCOUNT</p>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 mb-5">
+                <button type="button" data-auth-tab="login" onclick="setAuthTab('login')" class="py-2 rounded-lg border border-white bg-white text-black text-xs font-mono font-bold uppercase transition">LOG IN</button>
+                <button type="button" data-auth-tab="signup" onclick="setAuthTab('signup')" class="py-2 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 uppercase transition">SIGN UP</button>
+                <button type="button" data-auth-tab="owner" onclick="setAuthTab('owner')" class="py-2 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 uppercase transition">OWNER</button>
+            </div>
+
+            <form id="authLogin" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">USERNAME</label>
+                    <input type="text" id="loginUser" required maxlength="20" autocomplete="username" autocapitalize="off" spellcheck="false" class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50">
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">PASSWORD</label>
+                    <input type="password" id="loginPass" required maxlength="128" autocomplete="current-password" class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50">
+                </div>
+                <button type="submit" class="w-full py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.6)]">LOG IN</button>
+            </form>
+
+            <form id="authSignup" onsubmit="handleSignupSubmit(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">CHOOSE A USERNAME</label>
+                    <input type="text" id="signupUser" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" autocomplete="username" autocapitalize="off" spellcheck="false" class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50">
+                    <p class="text-[10px] font-mono text-soft/50 mt-1">3-20 characters: letters, numbers, underscores</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">PASSWORD</label>
+                    <input type="password" id="signupPass" required minlength="8" maxlength="128" autocomplete="new-password" class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50">
+                    <p class="text-[10px] font-mono text-soft/50 mt-1">at least 8 characters</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">CONFIRM PASSWORD</label>
+                    <input type="password" id="signupPass2" required minlength="8" maxlength="128" autocomplete="new-password" class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50">
+                </div>
+                <button type="submit" class="w-full py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.6)]">CREATE ACCOUNT</button>
+            </form>
+
+            <form id="authOwner" onsubmit="handleAuthSubmit(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">OWNER ACCESS KEY</label>
+                    <input type="password" id="passwordInput" required autocomplete="off" placeholder="Enter password..." class="w-full px-4 py-3 bg-black border border-white/30 rounded-xl text-sm font-mono text-white focus:outline-none focus:border-white focus:ring-2 focus:ring-white/50 tracking-widest">
+                    <p class="text-[10px] font-mono text-soft/50 mt-1">the site owner's password. Owners can do everything and manage accounts.</p>
+                </div>
+                <button type="submit" class="w-full py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.6)]">VERIFY CREDENTIALS</button>
+            </form>
+
+            <div id="authError" class="hidden text-xs font-mono text-red-400 mt-4 text-center break-words" role="alert"></div>
+        </div>
+    </div>
+
+    <div id="usersModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-2xl w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
+            <button onclick="closeUsersModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="mb-5">
+                <h3 class="text-2xl font-black font-mono uppercase tracking-wider chrome-gradient">USERS</h3>
+                <p class="text-xs font-mono text-soft/60 mt-1">ROLES, PERMISSIONS AND BANS &middot; <span id="usersCount">0 accounts</span></p>
+            </div>
+            <div class="relative mb-4">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-soft/50 text-xs"></i>
+                <input type="text" id="userSearch" oninput="renderUsers()" placeholder="SEARCH USERNAMES..." autocomplete="off"
+                    class="w-full pl-9 pr-4 py-2 bg-black/60 border border-white/20 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition">
+            </div>
+            <div id="usersList" class="space-y-2 max-h-[55vh] overflow-y-auto pr-1"></div>
+            <div id="usersEmpty" class="hidden text-center py-10 font-mono text-sm text-soft/60">No accounts yet</div>
+        </div>
+    </div>
+
+    <div id="userModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-lg w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
+            <button onclick="closeUserModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="mb-5">
+                <h3 id="umName" class="text-2xl font-black font-mono tracking-wider chrome-gradient break-all"></h3>
+                <p id="umMeta" class="text-xs font-mono text-soft/60 mt-1"></p>
+            </div>
+
+            <div id="umBanned" class="hidden mb-5 p-3 rounded-xl border border-red-500/50 bg-red-950/30 text-xs font-mono">
+                <div id="umBannedText" class="text-red-300 break-words mb-3"></div>
+                <button type="button" onclick="unbanUser()" class="w-full py-2 bg-black border border-red-500/50 text-red-300 font-mono text-xs font-bold uppercase rounded-lg hover:bg-red-500/20 transition">LIFT BAN NOW</button>
+            </div>
+
+            <form onsubmit="saveUserRole(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">ROLE</label>
+                    <select id="umRole" onchange="syncPermBoxes(true)" class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">PERMISSIONS</label>
+                    <div id="umPerms" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                    <p id="umPermsNote" class="text-[10px] font-mono text-soft/50 mt-2"></p>
+                </div>
+                <button type="submit" class="w-full py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.6)]">SAVE ROLE</button>
+                <button type="button" id="umClearBtn" onclick="removeAllPerms()" class="w-full py-2.5 bg-black border border-white/30 text-soft/80 font-mono text-xs font-bold uppercase rounded-xl hover:bg-white/10 transition">REMOVE ALL PERMISSIONS</button>
+            </form>
+
+            <div class="mt-6 pt-5 border-t border-white/15">
+                <h4 class="text-sm font-black font-mono uppercase tracking-wider text-red-400 mb-3">BAN</h4>
+                <div class="grid grid-cols-3 gap-3 mb-3">
+                    <select id="umDays" class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
+                        <option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option>
+                        <option value="4">4 days</option><option value="5">5 days</option><option value="6">6 days</option>
+                        <option value="7">7 days (1 week)</option>
+                    </select>
+                    <input type="text" id="umReason" maxlength="200" placeholder="Reason (they will see it)" autocomplete="off" class="col-span-2 w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
+                </div>
+                <button type="button" onclick="banUser()" class="w-full py-3 bg-black border border-red-500/50 text-red-400 font-mono text-xs font-black uppercase rounded-xl hover:bg-red-500/20 transition">BAN ACCOUNT</button>
+            </div>
+
+            <div id="umStatus" class="hidden mt-4 text-xs font-mono text-center text-white"></div>
+            <div id="umError" class="hidden mt-4 text-xs font-mono text-red-400 text-center break-words"></div>
+        </div>
+    </div>
+
+    <div id="pagesModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-3xl w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
+            <button onclick="closePagesModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white" title="Close">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="mb-5">
+                <h3 class="text-2xl font-black font-mono uppercase tracking-wider chrome-gradient">CUSTOM PAGES</h3>
+                <p class="text-xs font-mono text-soft/60 mt-1">PASTE HTML, GET A PERMANENT LINK. ONLY YOU (THE OWNER) CAN DO THIS.</p>
+            </div>
+
+            <form onsubmit="handlePageSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">PAGE TITLE *</label>
+                    <input type="text" id="pageTitleInput" maxlength="120" required class="w-full bg-black border border-white/30 rounded-xl px-4 py-2.5 font-mono text-sm text-white focus:outline-none focus:border-white" placeholder="e.g. Install Guide">
+                    <p class="text-[11px] font-mono text-soft/50 mt-1" id="pageLinkPreview"></p>
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">HTML *</label>
+                    <textarea id="pageHtmlInput" rows="12" spellcheck="false" required class="w-full bg-black border border-white/30 rounded-xl px-4 py-3 font-mono text-xs text-white focus:outline-none focus:border-white" placeholder="<!DOCTYPE html>&#10;<html>...paste your whole page here...</html>"></textarea>
+                </div>
+                <p id="pageError" class="hidden text-xs font-mono text-red-400"></p>
+                <div class="flex gap-3">
+                    <button type="submit" id="pageSubmitBtn" class="flex-grow py-3 rounded-xl bg-white text-black font-mono text-xs font-extrabold uppercase tracking-wider hover:bg-soft transition">Publish Page</button>
+                    <button type="button" id="pageCancelEditBtn" onclick="resetPageForm()" class="hidden px-5 py-3 rounded-xl border border-white/30 font-mono text-xs uppercase tracking-wider hover:bg-white/10 transition">Cancel edit</button>
+                </div>
+            </form>
+
+            <div class="mt-8 pt-5 border-t border-white/15">
+                <div class="text-xs font-mono text-soft/60 uppercase mb-3">Your pages</div>
+                <div id="pagesList" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="announceModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-lg w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
+            <button onclick="closeAnnounceModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="mb-5">
+                <h3 class="text-2xl font-black font-mono uppercase tracking-wider chrome-gradient">ANNOUNCEMENT</h3>
+                <p class="text-xs font-mono text-soft/60 mt-1">SHOWN TO EVERYONE ON THE SITE UNTIL YOU REMOVE IT</p>
+            </div>
+
+            <div id="announceLive" class="hidden mb-5 p-3 rounded-xl border border-white/30 bg-white/5 text-xs font-mono">
+                <div class="text-soft/60 uppercase mb-1">Live right now (<span id="announceLiveType"></span>):</div>
+                <div id="announceLiveMsg" class="text-white break-words whitespace-pre-wrap"></div>
+            </div>
+
+            <form onsubmit="handleAnnounceSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-2">TYPE</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="announceType" value="popup" class="peer sr-only" checked>
+                            <div class="px-3 py-3 rounded-xl border border-white/20 bg-black text-center font-mono text-xs text-soft/80 peer-checked:border-white peer-checked:bg-white/15 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-white transition">
+                                <i class="fa-regular fa-window-restore block text-lg mb-1"></i>
+                                POP-UP<br><span class="text-[10px] text-soft/50">they must close it</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="announceType" value="bar" class="peer sr-only">
+                            <div class="px-3 py-3 rounded-xl border border-white/20 bg-black text-center font-mono text-xs text-soft/80 peer-checked:border-white peer-checked:bg-white/15 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-white transition">
+                                <i class="fa-solid fa-grip-lines block text-lg mb-1"></i>
+                                GLOWING BAR<br><span class="text-[10px] text-soft/50">pinned to the top</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">MESSAGE *</label>
+                    <textarea id="announceMsgInput" rows="4" maxlength="500" required placeholder="e.g., New mods dropped! Join the Discord for updates."
+                        class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white"></textarea>
+                    <div class="text-right text-[10px] font-mono text-soft/50 mt-1"><span id="announceCount">0</span>/500</div>
+                </div>
+
+                <div id="announceError" class="hidden text-xs font-mono text-red-400 text-center"></div>
+
+                <div class="pt-2 flex flex-col sm:flex-row gap-3">
+                    <button type="button" id="announceRemoveBtn" onclick="removeAnnouncement()" class="hidden sm:w-1/3 py-3 bg-black border border-red-500/40 text-red-400 font-mono text-xs font-bold uppercase rounded-xl hover:border-red-500 transition">
+                        REMOVE
+                    </button>
+                    <button type="button" onclick="closeAnnounceModal()" class="flex-1 py-3 bg-black border border-white/30 text-white font-mono text-xs font-bold uppercase rounded-xl hover:bg-white/10 transition">
+                        CANCEL
+                    </button>
+                    <button type="submit" class="flex-1 py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.7)]">
+                        PUBLISH
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="postModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-xl w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
+            <button onclick="closePostModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="mb-6">
+                <h3 id="modalTitle" class="text-2xl font-black font-mono uppercase tracking-wider chrome-gradient">CREATE NEW MOD POST</h3>
+                <p class="text-xs font-mono text-soft/60 mt-1">PUBLISH MODIFICATIONS TO THE SHEK ARCHIVE</p>
+            </div>
+
+            <form onsubmit="handleSavePost(event)" class="space-y-4">
+                <input type="hidden" id="postId">
+
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">MOD TITLE *</label>
+                    <input type="text" id="postTitleInput" required placeholder="e.g., CyberHUD Overhaul v3.0"
+                        class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">AUTHOR NAME *</label>
+                    <input type="text" id="postAuthorInput" required placeholder="e.g., NeonDev"
+                        class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">STATUS *</label>
+                    <select id="postStatusInput" required class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
+                        <option value="Tested & Working">Tested & Working</option>
+                        <option value="Not Tested">Not Tested</option>
+                        <option value="Not Working">Not Working</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">DESCRIPTION *</label>
+                    <textarea id="postDescInput" rows="4" required placeholder="Detailed notes, installation steps, feature set..."
+                        class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">FILE LINK OR FILE URL *</label>
+                    <input type="text" id="postFileInput" required placeholder="https://... or filename.zip"
+                        class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="closePostModal()" class="w-1/2 py-3 bg-black border border-white/30 text-white font-mono text-xs font-bold uppercase rounded-xl hover:bg-white/10 transition">
+                        CANCEL
+                    </button>
+                    <button type="submit" class="w-1/2 py-3 bg-white text-black font-mono text-xs font-black uppercase rounded-xl hover:bg-soft transition shadow-[0_0_20px_rgba(var(--accent-rgb)/0.7)]">
+                        SAVE MOD POST
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let posts = [];
+        let activeFilter = 'ALL';
+        let postsLoaded = false;
+        // who is logged in: the owner (ADMIN_PASSWORD), an account, or nobody. What they may do comes from the server.
+        let me = null, isOwner = false, perms = new Set(), banned = null;
+        const can = (p) => perms.has(p);
+        const $ = (id) => document.getElementById(id);
+
+        const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const safeUrl = (u) => /^https?:\/\//i.test(u) ? u : (/^[a-z][a-z0-9+.-]*:/i.test(u) ? '#' : encodeURI(u));
+
+        async function api(path, opts = {}) {
+            const res = await fetch(path, {
+                credentials: 'same-origin',
+                headers: opts.body ? { 'Content-Type': 'application/json' } : {},
+                ...opts,
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                let msg = data.error || 'Request failed';
+                // show a ban's end time in the visitor's own time zone instead of GMT
+                if (data.banned) msg = 'You are banned until ' + new Date(data.banned.until).toLocaleString() + (data.banned.reason ? '. Reason: ' + data.banned.reason : '.');
+                throw Object.assign(new Error(msg), { status: res.status });
+            }
+            return data;
+        }
+
+        window.addEventListener('load', async () => {
+            initCanvas();
+            await refreshSession();
+            markTheme();
+            await loadPosts();
+        });
+
+        function applySession(s) {
+            s = s || {};
+            isOwner = !!s.owner;
+            me = s.user || null;
+            perms = new Set(s.permissions || []);
+            const bn = $('banNotice');
+            const wasBanned = !!banned;
+            banned = s.banned || null;
+            if (banned) {
+                const msg = 'Your account is banned until ' + new Date(banned.until).toLocaleString() + (banned.reason ? '. Reason: ' + banned.reason : '.');
+                bn.textContent = msg;
+                bn.classList.remove('hidden');
+                $('banLockText').textContent = msg;
+            } else {
+                bn.classList.add('hidden');
+            }
+            $('modsWrap').classList.toggle('locked', !!banned);
+            $('banLock').classList.toggle('hidden', !banned);
+            updateAuthUI();
+            if (wasBanned && !banned) loadPosts();       // ban ended or lifted: get the real mods
+            else if (postsLoaded) renderPosts();
+        }
+
+        async function refreshSession() {
+            try { applySession(await api('/api/session')); } catch (e) {}
+        }
+
+        function updateAuthUI() {
+            const loggedIn = isOwner || !!me;
+            const badge = $('adminBadge');
+            badge.classList.toggle('hidden', !loggedIn);
+            badge.classList.toggle('flex', loggedIn);
+            $('whoLabel').textContent = isOwner ? 'OWNER' : me ? me.username + ' \u00b7 ' + me.roleLabel : '';
+            $('openAuthBtn').classList.toggle('hidden', loggedIn);
+            $('createPostBtn').classList.toggle('hidden', !can('post'));
+            $('announceBtn').classList.toggle('hidden', !can('announce'));
+            $('usersBtn').classList.toggle('hidden', !isOwner);
+            $('createPageBtn').classList.toggle('hidden', !isOwner);
+            if (!isOwner) closePagesModal();
+            const picker = $('themePicker');
+            picker.classList.toggle('hidden', !can('theme'));
+            picker.classList.toggle('flex', can('theme'));
+        }
+
+        /* ---------- announcements (admin) ---------- */
+        function announceError(msg) {
+            const el = document.getElementById('announceError');
+            el.textContent = msg || '';
+            el.classList.toggle('hidden', !msg);
+        }
+
+        async function openAnnounceModal() {
+            announceError('');
+            await (window.ShekAnnounce ? ShekAnnounce.refresh() : Promise.resolve());   // show what is really live
+            const cur = window.ShekAnnounce ? ShekAnnounce.current() : { active: false };
+            const live = document.getElementById('announceLive');
+            live.classList.toggle('hidden', !cur.active);
+            document.getElementById('announceRemoveBtn').classList.toggle('hidden', !cur.active);
+            if (cur.active) {
+                document.getElementById('announceLiveType').textContent = cur.type === 'bar' ? 'glowing bar' : 'pop-up';
+                document.getElementById('announceLiveMsg').textContent = cur.message;
+            }
+            const input = document.getElementById('announceMsgInput');
+            input.value = cur.active ? cur.message : '';
+            document.querySelector('input[name="announceType"][value="' + (cur.active && cur.type === 'bar' ? 'bar' : 'popup') + '"]').checked = true;
+            document.getElementById('announceCount').textContent = input.value.length;
+            document.getElementById('announceModal').classList.remove('hidden');
+            input.focus();
+        }
+
+        /* ---------- custom pages (owner only) ---------- */
+        let pagesData = [], editingPageId = null;
+        const pageErr = (m) => { const e = $('pageError'); e.textContent = m || ''; e.classList.toggle('hidden', !m); };
+        const slugPreview = (t) => (String(t).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50).replace(/-+$/, '') || 'page');
+        function updateLinkPreview() {
+            const t = $('pageTitleInput').value.trim();
+            $('pageLinkPreview').textContent = editingPageId ? 'The link stays the same when you edit.' : (t ? 'Link: ' + location.origin + '/p/' + slugPreview(t) : '');
+        }
+        function resetPageForm() {
+            editingPageId = null;
+            $('pageTitleInput').value = ''; $('pageHtmlInput').value = '';
+            $('pageSubmitBtn').textContent = 'Publish Page';
+            $('pageCancelEditBtn').classList.add('hidden');
+            pageErr(''); updateLinkPreview();
+        }
+        async function loadPages() {
+            try { pagesData = await api('/api/pages'); } catch (err) { pageErr(err.message); pagesData = []; }
+            const box = $('pagesList');
+            if (!pagesData.length) { box.innerHTML = '<p class="text-xs font-mono text-soft/40">No pages yet.</p>'; return; }
+            box.innerHTML = pagesData.map((p) => `
+                <div class="flex items-center gap-2 p-3 rounded-xl border border-white/15 bg-black/50">
+                    <div class="flex-grow min-w-0">
+                        <div class="font-mono text-sm text-white truncate">${esc(p.title)}</div>
+                        <div class="font-mono text-[11px] text-soft/50 truncate">/p/${esc(p.slug)} · ${esc(p.date)}</div>
+                    </div>
+                    <a href="/p/${esc(p.slug)}" target="_blank" rel="noopener" title="Open" class="p-2 border border-white/20 rounded-xl hover:border-white text-soft/70 hover:text-white transition"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                    <button type="button" onclick="copyPageLink('${esc(p.slug)}', this)" title="Copy link" class="p-2 border border-white/20 rounded-xl hover:border-white text-soft/70 hover:text-white transition"><i class="fa-solid fa-link"></i></button>
+                    <button type="button" onclick="editPage(${p.id})" title="Edit" class="p-2 border border-white/20 rounded-xl hover:border-white text-soft/70 hover:text-white transition"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button type="button" onclick="deletePage(${p.id})" title="Delete" class="p-2 border border-red-500/30 rounded-xl hover:border-red-500 text-red-400 transition"><i class="fa-solid fa-trash"></i></button>
+                </div>`).join('');
+        }
+        async function openPagesModal() {
+            if (!isOwner) return;
+            resetPageForm();
+            $('pagesModal').classList.remove('hidden');
+            await loadPages();
+        }
+        function closePagesModal() { $('pagesModal').classList.add('hidden'); }
+        async function handlePageSubmit(e) {
+            e.preventDefault(); pageErr('');
+            const btn = $('pageSubmitBtn'); btn.disabled = true;
+            try {
+                const body = JSON.stringify({ title: $('pageTitleInput').value, html: $('pageHtmlInput').value });
+                const saved = await api(editingPageId ? '/api/pages/' + editingPageId : '/api/pages', { method: editingPageId ? 'PUT' : 'POST', body });
+                const wasEdit = !!editingPageId;
+                resetPageForm();
+                await loadPages();
+                if (!wasEdit) { try { await navigator.clipboard.writeText(location.origin + '/p/' + saved.slug); } catch (e2) {} }
+                pageErr('');
+                $('pageLinkPreview').textContent = (wasEdit ? 'Saved. ' : 'Published and link copied: ') + location.origin + '/p/' + saved.slug;
+            } catch (err) { pageErr(err.message); }
+            btn.disabled = false;
+        }
+        async function editPage(id) {
+            pageErr('');
+            try {
+                const p = await api('/api/pages/' + id);
+                editingPageId = id;
+                $('pageTitleInput').value = p.title; $('pageHtmlInput').value = p.html;
+                $('pageSubmitBtn').textContent = 'Save Changes';
+                $('pageCancelEditBtn').classList.remove('hidden');
+                updateLinkPreview();
+                $('pageTitleInput').scrollIntoView({ block: 'center' });
+            } catch (err) { pageErr(err.message); }
+        }
+        async function deletePage(id) {
+            const p = pagesData.find((x) => x.id === id);
+            if (!confirm('Delete "' + (p ? p.title : 'this page') + '"? Its link will stop working.')) return;
+            try { await api('/api/pages/' + id, { method: 'DELETE' }); if (editingPageId === id) resetPageForm(); await loadPages(); }
+            catch (err) { pageErr(err.message); }
+        }
+        async function copyPageLink(slug, btn) {
+            const url = location.origin + '/p/' + slug;
+            try { await navigator.clipboard.writeText(url); } catch (e) { prompt('Copy this link:', url); return; }
+            const old = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            setTimeout(() => { btn.innerHTML = old; }, 1400);
+        }
+        document.addEventListener('input', (e) => { if (e.target && e.target.id === 'pageTitleInput') updateLinkPreview(); });
+
+        function closeAnnounceModal() {
+            document.getElementById('announceModal').classList.add('hidden');
+        }
+
+        document.addEventListener('input', (e) => {
+            if (e.target && e.target.id === 'announceMsgInput') document.getElementById('announceCount').textContent = e.target.value.length;
+        });
+
+        async function handleAnnounceSubmit(e) {
+            e.preventDefault();
+            const type = document.querySelector('input[name="announceType"]:checked').value;
+            const message = document.getElementById('announceMsgInput').value;
+            try {
+                const a = await api('/api/announcement', { method: 'PUT', body: JSON.stringify({ type, message }) });
+                ShekAnnounce.apply(a);
+                closeAnnounceModal();
+            } catch (err) {
+                if (err.status === 401 || err.status === 403) { await refreshSession(); if (!can('announce')) closeAnnounceModal(); }
+                announceError(err.message);
+            }
+        }
+
+        async function removeAnnouncement() {
+            try {
+                await api('/api/announcement', { method: 'DELETE' });
+                ShekAnnounce.apply({ active: false });
+                closeAnnounceModal();
+            } catch (err) {
+                if (err.status === 401 || err.status === 403) { await refreshSession(); if (!can('announce')) closeAnnounceModal(); }
+                announceError(err.message);
+            }
+        }
+
+
+        function markTheme() {
+            const cur = window.ShekTheme && ShekTheme.current();
+            document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('active', b.dataset.themeBtn === cur));
+        }
+        document.addEventListener('themechange', markTheme);
+
+        async function setSiteTheme(name) {
+            try {
+                await api('/api/theme', { method: 'PUT', body: JSON.stringify({ theme: name }) });
+                ShekTheme.apply(name);
+            } catch (err) {
+                if (err.status === 401 || err.status === 403) await refreshSession();
+                alert(err.message);
+            }
+        }
+
+        /* ---------- log in / sign up / owner ---------- */
+        const ACTIVE_TAB = "py-2 rounded-lg border border-white bg-white text-black text-xs font-mono font-bold uppercase transition";
+        const INACTIVE_TAB = "py-2 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 uppercase transition";
+
+        function showAuthError(msg) {
+            const el = $('authError');
+            el.textContent = msg || '';
+            el.classList.toggle('hidden', !msg);
+        }
+
+        function setAuthTab(tab) {
+            const subs = { login: 'LOG IN TO YOUR SHEK MODZ ACCOUNT', signup: 'CREATE A FREE ACCOUNT', owner: 'OWNER ACCESS' };
+            ['login', 'signup', 'owner'].forEach((t) => {
+                $('auth' + t[0].toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== tab);
+                document.querySelector('[data-auth-tab="' + t + '"]').className = t === tab ? ACTIVE_TAB : INACTIVE_TAB;
+            });
+            $('authSub').textContent = subs[tab];
+            showAuthError('');
+        }
+
+        function toggleAuthModal() {
+            const modal = $('authModal');
+            const opening = modal.classList.contains('hidden');
+            modal.classList.toggle('hidden');
+            if (opening) { setAuthTab('login'); $('loginUser').focus(); }
+            else showAuthError('');
+        }
+
+        function authErrorText(err) {
+            if (err.status === 429) return 'Too many attempts. Try again later.';
+            if (!err.status || err.status >= 500) return 'Server error (' + (err.status || 'no connection') + '): ' + err.message;
+            return err.message;
+        }
+
+        function finishAuth(session) {
+            ['loginUser', 'loginPass', 'signupUser', 'signupPass', 'signupPass2', 'passwordInput'].forEach((id) => { $(id).value = ''; });
+            applySession(session);
+            $('authModal').classList.add('hidden');
+            showAuthError('');
+        }
+
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            try { finishAuth(await api('/api/login', { method: 'POST', body: JSON.stringify({ username: $('loginUser').value, password: $('loginPass').value }) })); }
+            catch (err) { showAuthError(authErrorText(err)); }
+        }
+
+        async function handleSignupSubmit(e) {
+            e.preventDefault();
+            if ($('signupPass').value !== $('signupPass2').value) return showAuthError('Passwords do not match.');
+            try { finishAuth(await api('/api/register', { method: 'POST', body: JSON.stringify({ username: $('signupUser').value, password: $('signupPass').value }) })); }
+            catch (err) { showAuthError(authErrorText(err)); }
+        }
+
+        async function handleAuthSubmit(e) {   // owner access key
+            e.preventDefault();
+            try { finishAuth(await api('/api/login', { method: 'POST', body: JSON.stringify({ password: $('passwordInput').value }) })); }
+            catch (err) { showAuthError(authErrorText(err)); }
+        }
+
+        async function logout() {
+            try { await api('/api/logout', { method: 'POST' }); } catch (e) {}
+            ['usersModal', 'userModal', 'announceModal', 'postModal'].forEach((id) => $(id).classList.add('hidden'));
+            applySession({});
+        }
+
+        /* ---------- owner: manage accounts ---------- */
+        let usersData = { users: [], roles: {}, permissions: [] };
+        let managingId = null;
+        const fmtDate = (ms) => new Date(ms).toLocaleString();
+        const permLabel = (k) => ((usersData.permissions.find((p) => p.key === k) || {}).label || k);
+        const loadUsers = async () => { usersData = await api('/api/users'); };
+
+        async function openUsersModal() {
+            if (!isOwner) return;
+            try { await loadUsers(); } catch (err) { alert(err.message); return; }
+            $('userSearch').value = '';
+            renderUsers();
+            $('usersModal').classList.remove('hidden');
+            $('userSearch').focus();
+        }
+
+        function closeUsersModal() { $('usersModal').classList.add('hidden'); }
+
+        function renderUsers() {
+            const q = $('userSearch').value.trim().toLowerCase();
+            const list = usersData.users.filter((u) => u.username.toLowerCase().includes(q));
+            const total = usersData.users.length;
+            $('usersCount').textContent = total + ' account' + (total === 1 ? '' : 's');
+            $('usersEmpty').textContent = total ? 'No accounts match' : 'No accounts yet';
+            $('usersEmpty').classList.toggle('hidden', list.length > 0);
+            $('usersList').innerHTML = list.map((u) => `
+                <div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${u.bannedUntil ? 'border-red-500/40 bg-red-950/20' : 'border-white/15 bg-black/40'}">
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-mono font-bold text-white break-all">${esc(u.username)}</span>
+                            <span class="px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-[10px] font-mono uppercase text-soft/80">${esc(u.roleLabel)}</span>
+                            ${u.bannedUntil ? `<span class="px-2 py-0.5 rounded-full border border-red-500/50 text-[10px] font-mono uppercase text-red-400">banned until ${esc(fmtDate(u.bannedUntil))}</span>` : ''}
+                        </div>
+                        <div class="text-[10px] font-mono text-soft/50 mt-1">${u.permissions.length ? esc(u.permissions.map(permLabel).join(' · ')) : 'no permissions'} · joined ${esc(u.createdAt)}</div>
+                    </div>
+                    <button onclick="openUserModal(${u.id})" class="shrink-0 px-3 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition text-xs font-mono font-bold uppercase">Manage</button>
+                </div>`).join('');
+        }
+
+        function userModalMessage(ok, err) {
+            const okEl = $('umStatus'), errEl = $('umError');
+            okEl.textContent = ok || ''; okEl.classList.toggle('hidden', !ok);
+            errEl.textContent = err || ''; errEl.classList.toggle('hidden', !err);
+        }
+
+        function openUserModal(id) {
+            managingId = id;
+            userModalMessage('', '');
+            fillUserModal();
+            $('userModal').classList.remove('hidden');
+        }
+
+        function closeUserModal() {
+            $('userModal').classList.add('hidden');
+            managingId = null;
+        }
+
+        function fillUserModal() {
+            const u = usersData.users.find((x) => x.id === managingId);
+            if (!u) return closeUserModal();
+            $('umName').textContent = u.username;
+            $('umMeta').textContent = 'JOINED ' + u.createdAt;
+            $('umRole').innerHTML = Object.entries(usersData.roles).map(([k, r]) => `<option value="${esc(k)}">${esc(r.label)}</option>`).join('');
+            $('umRole').value = u.role;
+            $('umPerms').innerHTML = usersData.permissions.map((p) => `
+                <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-black text-xs font-mono text-soft/80">
+                    <input type="checkbox" data-perm="${esc(p.key)}" onchange="onPermToggle()" ${u.permissions.includes(p.key) ? 'checked' : ''}> ${esc(p.label)}
+                </label>`).join('');
+            syncPermBoxes(false);
+            $('umClearBtn').classList.toggle('hidden', !u.permissions.length);   // nothing to remove
+            const banned = !!u.bannedUntil;
+            $('umBanned').classList.toggle('hidden', !banned);
+            if (banned) $('umBannedText').textContent = 'BANNED UNTIL ' + fmtDate(u.bannedUntil) + (u.banReason ? ' — ' + u.banReason : '');
+            $('umReason').value = '';
+        }
+
+        // Picking a role fills in its permissions. The boxes are always tickable: changing one
+        // switches the role to Custom, or to the preset whose permissions match exactly.
+        function syncPermBoxes(applyPreset) {
+            const role = $('umRole').value;
+            const preset = usersData.roles[role] && usersData.roles[role].perms;
+            document.querySelectorAll('#umPerms input[data-perm]').forEach((cb) => {
+                if (applyPreset && preset) cb.checked = preset.includes(cb.dataset.perm);
+                cb.disabled = false;
+            });
+            $('umPermsNote').textContent = role === 'custom'
+                ? 'Custom: exactly the ticked permissions.'
+                : 'Tick or untick anything to customise. The role switches to Custom (or the matching role) on its own.';
+        }
+
+        function onPermToggle() {
+            const ticked = [...document.querySelectorAll('#umPerms input[data-perm]:checked')].map((cb) => cb.dataset.perm).sort().join(',');
+            const match = Object.entries(usersData.roles).find(([, r]) => r.perms && r.perms.slice().sort().join(',') === ticked);
+            $('umRole').value = match ? match[0] : 'custom';
+            syncPermBoxes(false);
+        }
+
+        async function patchUser(body, okMessage) {
+            try {
+                await api('/api/users/' + managingId, { method: 'PATCH', body: JSON.stringify(body) });
+                await loadUsers();
+                renderUsers();
+                fillUserModal();
+                userModalMessage(okMessage, '');
+            } catch (err) {
+                userModalMessage('', err.message);
+                if (err.status === 401 || err.status === 403) await refreshSession();
+            }
+        }
+
+        async function saveUserRole(e) {
+            e.preventDefault();
+            const role = $('umRole').value;
+            const body = { role };
+            if (role === 'custom') body.permissions = [...document.querySelectorAll('#umPerms input[data-perm]:checked')].map((cb) => cb.dataset.perm);
+            await patchUser(body, 'Saved.');
+        }
+
+        async function removeAllPerms() {
+            const u = usersData.users.find((x) => x.id === managingId);
+            if (!u || !confirm('Remove all permissions from ' + u.username + '? They keep their account as a plain member.')) return;
+            await patchUser({ role: 'member' }, 'All permissions removed.');
+        }
+
+        async function banUser() {
+            const u = usersData.users.find((x) => x.id === managingId);
+            const days = Number($('umDays').value);
+            if (!u || !confirm('Ban ' + u.username + ' for ' + days + ' day' + (days === 1 ? '' : 's') + '?')) return;
+            await patchUser({ ban: { days, reason: $('umReason').value } }, 'Banned for ' + days + ' day' + (days === 1 ? '' : 's') + '.');
+        }
+
+        async function unbanUser() { await patchUser({ unban: true }, 'Ban lifted.'); }
+
+        async function loadPosts() {
+            if (banned) { posts = []; postsLoaded = true; renderPosts(); return; }
+            try { posts = await api('/api/posts'); } catch (e) { posts = []; }
+            postsLoaded = true;
+            renderPosts();
+        }
+
+        function setFilter(filter) {
+            activeFilter = filter;
+            const ids = { 'ALL': 'filterAll', 'Tested & Working': 'filterWorking', 'Not Tested': 'filterNotTested', 'Not Working': 'filterNotWorking' };
+            Object.entries(ids).forEach(([f, id]) => {
+                const el = document.getElementById(id);
+                el.className = f === activeFilter
+                    ? "px-3 py-1.5 rounded-lg border border-white bg-white text-black text-xs font-mono font-bold transition"
+                    : "px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition";
+            });
+            renderPosts();
+        }
+
+        function openPostModal(editId = null) {
+            const modalTitle = document.getElementById('modalTitle');
+            const post = editId ? posts.find(p => p.id === editId) : null;
+            document.getElementById('postId').value = post ? post.id : '';
+            document.getElementById('postTitleInput').value = post ? post.title : '';
+            document.getElementById('postAuthorInput').value = post ? post.author : '';
+            document.getElementById('postStatusInput').value = post ? post.status : 'Tested & Working';
+            document.getElementById('postDescInput').value = post ? post.desc : '';
+            document.getElementById('postFileInput').value = post ? post.fileLink : '';
+            modalTitle.innerText = post ? "EDIT MOD POST" : "CREATE NEW MOD POST";
+            document.getElementById('postModal').classList.remove('hidden');
+        }
+
+        function closePostModal() {
+            document.getElementById('postModal').classList.add('hidden');
+        }
+
+        async function handleSavePost(e) {
+            e.preventDefault();
+            const id = document.getElementById('postId').value;
+            const body = JSON.stringify({
+                title: document.getElementById('postTitleInput').value,
+                author: document.getElementById('postAuthorInput').value,
+                status: document.getElementById('postStatusInput').value,
+                description: document.getElementById('postDescInput').value,
+                file_link: document.getElementById('postFileInput').value,
+            });
+            try {
+                await api(id ? '/api/posts/' + id : '/api/posts', { method: id ? 'PUT' : 'POST', body });
+                closePostModal();
+                await loadPosts();
+            } catch (err) {
+                if (err.status === 401 || err.status === 403) { await refreshSession(); closePostModal(); }
+                alert(err.message);
+            }
+        }
+
+        async function deletePost(id) {
+            if (!can('delete') || !confirm('Delete this mod post?')) return;
+            try { await api('/api/posts/' + id, { method: 'DELETE' }); await loadPosts(); }
+            catch (err) { alert(err.message); }
+        }
+
+        function modLink(id) { return location.origin + '/mod/' + id; }
+        async function copyModLink(id, btn) {
+            const url = modLink(id);
+            let ok = false;
+            try { await navigator.clipboard.writeText(url); ok = true; } catch (e) {
+                const t = document.createElement('textarea');
+                t.value = url; t.style.position = 'fixed'; t.style.opacity = '0';
+                document.body.appendChild(t); t.select();
+                try { ok = document.execCommand('copy'); } catch (e2) {}
+                t.remove();
+            }
+            if (!ok) { prompt('Copy this link:', url); return; }
+            const old = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            setTimeout(() => { btn.innerHTML = old; }, 1400);
+        }
+
+        function getStatusBadgeHtml(status) {
+            if (status === 'Tested & Working') {
+                return `<span class="px-2.5 py-1 rounded-full bg-white text-black font-extrabold text-[10px] font-mono tracking-wider shadow-[0_0_12px_rgba(var(--accent-rgb)/0.9)] flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-check"></i> WORKING
+                        </span>`;
+            } else if (status === 'Not Tested') {
+                return `<span class="px-2.5 py-1 rounded-full border border-white/40 bg-white/10 text-soft/80 text-[10px] font-mono tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-triangle-exclamation"></i> UNTESTED
+                        </span>`;
+            }
+            return `<span class="px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-700 text-soft/50 line-through text-[10px] font-mono tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-bug text-xs"></i> NOT WORKING
+                    </span>`;
+        }
+
+        function renderPosts() {
+            const container = document.getElementById('postsContainer');
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            const noPostsMsg = document.getElementById('noPostsMsg');
+
+            if (banned) {   // the real mods are never shown (or even sent): blurred placeholders only
+                noPostsMsg.classList.add('hidden');
+                document.getElementById('statTotal').innerText = '--';
+                document.getElementById('statWorking').innerText = '--';
+                container.innerHTML = Array.from({ length: 6 }, () => `
+                    <div class="glass-panel rounded-2xl border border-white/15 p-6 h-56 flex flex-col gap-3">
+                        <div class="w-24 h-5 rounded-full bg-white/60"></div>
+                        <div class="w-3/4 h-6 rounded bg-white/40"></div>
+                        <div class="w-full h-3 rounded bg-soft/30"></div><div class="w-5/6 h-3 rounded bg-soft/30"></div>
+                        <div class="mt-auto w-full h-9 rounded-xl border border-white/30"></div>
+                    </div>`).join('');
+                return;
+            }
+
+            const filtered = posts.filter(p =>
+                (activeFilter === 'ALL' || p.status === activeFilter) &&
+                (p.title.toLowerCase().includes(q) || p.author.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q))
+            );
+
+            document.getElementById('statTotal').innerText = posts.length;
+            document.getElementById('statWorking').innerText = posts.filter(p => p.status === 'Tested & Working').length;
+
+            if (!filtered.length) {
+                container.innerHTML = '';
+                noPostsMsg.classList.remove('hidden');
+                return;
+            }
+            noPostsMsg.classList.add('hidden');
+
+            container.innerHTML = filtered.map(post => `
+                <div class="glass-panel rounded-2xl border border-white/15 p-6 flex flex-col justify-between hover:border-white/50 transition-all duration-300 glow-box-sm group relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl pointer-events-none group-hover:bg-white/10 transition"></div>
+                    <div>
+                        <div class="flex justify-between items-start gap-2 mb-4">
+                            <div>${getStatusBadgeHtml(post.status)}</div>
+                            <span class="text-[10px] font-mono text-soft/50">${esc(post.date)}</span>
+                        </div>
+                        <h2 class="text-xl font-bold font-mono tracking-wide text-white mb-2 group-hover:text-soft transition"><a href="/mod/${post.id}">${esc(post.title)}</a></h2>
+                        <p class="text-soft/60 text-xs font-mono leading-relaxed mb-6 line-clamp-3">${esc(post.desc)}</p>
+                    </div>
+                    <div>
+                        <div class="pt-4 border-t border-white/10 flex justify-between items-center text-xs font-mono mb-4">
+                            <span class="text-soft/50">AUTHOR: <strong class="text-white">${esc(post.author)}</strong></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a href="${esc(safeUrl(post.fileLink))}" target="_blank" rel="noopener noreferrer" class="flex-grow py-2 px-4 rounded-xl border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 text-center font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-download text-xs"></i> Get File
+                            </a>
+                            <button onclick="copyModLink(${post.id}, this)" title="Copy link to this mod" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
+                                <i class="fa-solid fa-link"></i>
+                            </button>
+                            ${can('edit') ? `
+                                <button onclick="openPostModal(${post.id})" title="Edit Post" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>` : ''}
+                            ${can('delete') ? `
+                                <button onclick="deletePost(${post.id})" title="Delete Post" class="p-2 border border-red-500/30 bg-black/60 rounded-xl hover:border-red-500 text-red-400 transition">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function initCanvas() {
+            const canvas = document.getElementById('bgCanvas');
+            const ctx = canvas.getContext('2d');
+            function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const particles = Array.from({ length: 40 }, () => ({
+                x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
+                size: Math.random() * 2 + 1
+            }));
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const rgb = window.ShekTheme ? ShekTheme.rgb() : '34,255,102';
+                ctx.fillStyle = `rgba(${rgb},0.6)`;
+                ctx.strokeStyle = `rgba(${rgb},0.08)`;
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    p.x += p.vx; p.y += p.vy;
+                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const p2 = particles[j];
+                        if (Math.hypot(p.x - p2.x, p.y - p2.y) < 120) {
+                            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                        }
+                    }
+                }
+                requestAnimationFrame(draw);
+            }
+            draw();
+        }
+    </script>
+</body>
+</html>
