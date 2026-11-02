@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        /* old address -> "we moved" page (the new address keeps working normally) */
+        if (location.hostname === 'apkmodding.vercel.app') {
+            location.replace('/moved/?p=' + encodeURIComponent(location.pathname + location.search + location.hash));
+        }
+    </script>
     <title>Mod | Shek Modz</title>
     <script src="/theme.js"></script>
     <script src="/announce.js"></script>
@@ -66,7 +72,8 @@
                 '<p class="desc">' + esc(p.desc) + '</p>' +
                 '<div class="author">AUTHOR: <strong>' + esc(p.author) + '</strong></div>' +
                 '<div class="btns"><a class="btn" target="_blank" rel="noopener noreferrer" href="' + esc(safeUrl(p.fileLink)) + '"><i class="fa-solid fa-download"></i> Get File</a>' +
-                '<button class="btn" id="cp"><i class="fa-solid fa-link"></i> Copy Link</button></div>';
+                '<button class="btn" id="cp"><i class="fa-solid fa-link"></i> Copy Link</button>' +
+                '<a class="btn" href="/?request=' + p.id + '"><i class="fa-regular fa-envelope"></i> Takedown / Update</a></div>';
             document.getElementById('cp').onclick = function () {
                 var btn = this, old = btn.innerHTML;
                 function done() { btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied'; setTimeout(function () { btn.innerHTML = old; }, 1400); }
