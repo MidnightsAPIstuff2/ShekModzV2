@@ -3,12 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script>
-        /* old address -> "we moved" page (the new address keeps working normally) */
-        if (location.hostname === 'apkmodding.vercel.app') {
-            location.replace('/moved/?p=' + encodeURIComponent(location.pathname + location.search + location.hash));
-        }
-    </script>
     <title>Shek Modz</title>
     <script src="/theme.js"></script>
     <script src="/announce.js"></script>
@@ -179,6 +173,10 @@
                     <button id="announceBtn" onclick="openAnnounceModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Send an announcement to everyone">
                         <i class="fa-solid fa-bullhorn text-xs"></i> Announce
                     </button>
+
+                    <a href="/staff/" class="px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Who makes the mods">
+                        <i class="fa-solid fa-user-group text-xs"></i> Staff Team
+                    </a>
 
                     <button id="myReqBtn" onclick="openRequestModal(null, 'mine')" class="hidden relative px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm items-center gap-2" title="Your takedown / update requests and the developer's replies">
                         <i class="fa-regular fa-envelope text-xs"></i> My Requests
