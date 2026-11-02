@@ -345,6 +345,16 @@ async function loadThread(db, row, forOwner) {
     createdAt: Number(row.created_at), updatedAt: Number(row.updated_at), messages: msgs,
   };
 }
+const DEFAULT_STAFF = [{ role: 'Developer', members: ['shek', 'morty', 'spooky'] }];
+function parseStaff(text) {           // "Role\nname\nname\n\nRole 2\nname" -> [{role, members}]
+  const groups = [];
+  for (const block of String(text).replace(/\r\n?/g, '\n').split(/\n\s*\n/)) {
+    const lines = block.split('\n').map((l) => l.replace(/^[\s·•*\-]+/, '').trim()).filter(Boolean);
+    if (!lines.length) continue;
+    groups.push({ role: lines[0].slice(0, 40), members: lines.slice(1).map((n) => n.slice(0, 40)).slice(0, 50) });
+  }
+  return groups.slice(0, 20);
+}
 const signups = new Map();
 const signupLimited = (ip) => {
   const now = Date.now();
@@ -610,9 +620,6 @@ async function handleApi(req, res) {
   /* ----- custom pages (owner-made, permanent, served at /p/<slug>) ----- */
   let pm = pathname.match(/^\/api\/p\/([a-z0-9-]{1,60})$/);
   if (pm && method === 'GET') {
-    if (String(req.headers.host || '').toLowerCase().split(':')[0] === 'apkmodding.vercel.app') {
-      res.statusCode = 302; res.setHeader('Location', '/moved/?p=' + encodeURIComponent('/p/' + pm[1])); return res.end();
-    }
     const db = await getDb();
     const r = await db.execute({ sql: 'SELECT html FROM pages WHERE slug = ?', args: [pm[1]] });
     if (!r.rows.length) return sendHtml(res, 404, '<!DOCTYPE html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not found</title><body style="background:#000;color:#22ff66;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center"><div>Page not found.<br><br><a style="color:#22ff66" href="/">Home</a></div>');
@@ -664,6 +671,25 @@ async function handleApi(req, res) {
       const del = await db.execute({ sql: 'DELETE FROM pages WHERE id = ?', args: [id] });
       return send(res, del.rowsAffected ? 200 : 404, { ok: !!del.rowsAffected });
     }
+  }
+
+  /* ----- staff team page (public to read, owner edits) ----- */
+  if (pathname === '/api/staff' && method === 'GET') {
+    const db = await getDb();
+    const r = await db.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['staff'] });
+    let groups = DEFAULT_STAFF;
+    if (r.rows[0]) { try { groups = JSON.parse(r.rows[0].value); } catch {} }
+    return send(res, 200, { groups });
+  }
+  if (pathname === '/api/staff' && method === 'PUT') {
+    if (!requireOwner(res, await getAuth(req))) return;
+    if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+    let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+    if (typeof body.text !== 'string' || body.text.length > 5000) return send(res, 400, { error: 'Too long.' });
+    const groups = parseStaff(body.text);
+    const db = await getDb();
+    await db.execute({ sql: 'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', args: ['staff', JSON.stringify(groups)] });
+    return send(res, 200, { groups });
   }
 
   /* ----- takedown / update requests (a small "mailbox" between visitors and the developer) ----- */
