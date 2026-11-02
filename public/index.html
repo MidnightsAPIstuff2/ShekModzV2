@@ -3,17 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        /* old address -> "we moved" page (the new address keeps working normally) */
+        if (location.hostname === 'apkmodding.vercel.app') {
+            location.replace('/moved/?p=' + encodeURIComponent(location.pathname + location.search + location.hash));
+        }
+    </script>
     <title>Shek Modz</title>
-
-    <!-- embed shiz -->
-    <meta property="og:title" content="Shek Modz">
-    <meta property="og:description" content="Best game info pulls, backend leaks, APKs, and general mods website.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://www.standy.best/"> 
-    <meta property="og:image" content="https://files.catbox.moe/t80xif.png"> <!-- note for me: replace catbox with the website itself so if the site goes down it does too -->
-    <meta name="theme-color" content="#22ff66">
-    <meta name="twitter:card" content="summary_large_image">
-
     <script src="/theme.js"></script>
     <script src="/announce.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -182,6 +178,16 @@
 
                     <button id="announceBtn" onclick="openAnnounceModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Send an announcement to everyone">
                         <i class="fa-solid fa-bullhorn text-xs"></i> Announce
+                    </button>
+
+                    <button id="myReqBtn" onclick="openRequestModal(null, 'mine')" class="hidden relative px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm items-center gap-2" title="Your takedown / update requests and the developer's replies">
+                        <i class="fa-regular fa-envelope text-xs"></i> My Requests
+                        <span id="myReqBadge" class="hidden absolute -top-2 -right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(var(--accent-rgb)/0.9)]"></span>
+                    </button>
+
+                    <button id="inboxBtn" onclick="openInbox()" class="hidden relative px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm items-center gap-2" title="Takedown and update requests from visitors">
+                        <i class="fa-solid fa-inbox text-xs"></i> Inbox
+                        <span id="inboxBadge" class="hidden absolute -top-2 -right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(var(--accent-rgb)/0.9)]"></span>
                     </button>
 
                     <button id="createPostBtn" onclick="openPostModal()" class="hidden px-4 py-1.5 rounded-lg bg-white text-black hover:bg-soft transition-all duration-300 font-mono text-xs uppercase tracking-wider font-extrabold shadow-[0_0_15px_rgba(var(--accent-rgb)/0.7)] flex items-center gap-2">
@@ -415,6 +421,10 @@
                     </select>
                     <input type="text" id="umReason" maxlength="200" placeholder="Reason (they will see it)" autocomplete="off" class="col-span-2 w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
                 </div>
+                <label class="flex items-start gap-2 mb-3 text-xs font-mono text-soft/80">
+                    <input type="checkbox" id="umBlockIp" checked class="mt-0.5">
+                    <span>Also block the connections (IP addresses) this account used in the last 24 hours, so they can't just log out or make a new account. Only a scrambled hash is stored. Shared networks (school, family, mobile data) can catch other people too, until the ban ends.</span>
+                </label>
                 <button type="button" onclick="banUser()" class="w-full py-3 bg-black border border-red-500/50 text-red-400 font-mono text-xs font-black uppercase rounded-xl hover:bg-red-500/20 transition">BAN ACCOUNT</button>
             </div>
 
@@ -518,6 +528,100 @@
         </div>
     </div>
 
+    <div id="requestModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-2xl w-full glass-panel border border-white/30 rounded-2xl relative glow-heavy my-8 overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-white/20 bg-white/5">
+                <div class="flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-white">
+                    <i class="fa-regular fa-envelope"></i> <span id="rqTitle">New message</span>
+                </div>
+                <button onclick="closeRequestModal()" class="text-soft/60 hover:text-white" title="Close"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="grid grid-cols-2 border-b border-white/15 font-mono text-xs uppercase">
+                <button id="rqTabCompose" onclick="showRqTab('compose')" class="py-2.5 text-white border-b-2 border-white bg-white/5">Compose</button>
+                <button id="rqTabMine" onclick="showRqTab('mine')" class="py-2.5 text-soft/60 border-b-2 border-transparent hover:text-white">My requests <span id="rqMineCount" class="text-soft/50"></span></button>
+            </div>
+
+            <!-- compose -->
+            <form id="rqCompose" onsubmit="sendRequest(event)" class="font-mono text-sm">
+                <div class="flex items-center gap-3 px-5 py-2.5 border-b border-white/10">
+                    <span class="w-16 shrink-0 text-xs text-soft/50 uppercase">To</span>
+                    <span class="px-2.5 py-0.5 rounded-full border border-white/40 bg-white/10 text-xs text-white">DEVELOPER</span>
+                </div>
+                <div class="flex items-center gap-3 px-5 py-2 border-b border-white/10">
+                    <span class="w-16 shrink-0 text-xs text-soft/50 uppercase">From</span>
+                    <input type="text" id="rqName" maxlength="40" autocomplete="off" placeholder="Your name (optional)" class="flex-1 min-w-0 bg-transparent py-1 text-white focus:outline-none placeholder:text-soft/30">
+                </div>
+                <div class="flex items-center gap-3 px-5 py-2 border-b border-white/10">
+                    <span class="w-16 shrink-0 text-xs text-soft/50 uppercase">Reach me</span>
+                    <input type="text" id="rqContact" maxlength="120" autocomplete="off" placeholder="Email or Discord (optional, only the developer sees it)" class="flex-1 min-w-0 bg-transparent py-1 text-white focus:outline-none placeholder:text-soft/30">
+                </div>
+                <div class="flex items-center gap-3 px-5 py-2.5 border-b border-white/10">
+                    <span class="w-16 shrink-0 text-xs text-soft/50 uppercase">Type</span>
+                    <div class="flex gap-2">
+                        <button type="button" id="rqTypeTakedown" onclick="setRqType('takedown')" class="px-3 py-1 rounded-lg border text-xs">Takedown</button>
+                        <button type="button" id="rqTypeUpdate" onclick="setRqType('update')" class="px-3 py-1 rounded-lg border text-xs">Update</button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 px-5 py-2.5 border-b border-white/10">
+                    <span class="w-16 shrink-0 text-xs text-soft/50 uppercase">Subject</span>
+                    <span id="rqSubject" class="flex-1 min-w-0 truncate text-white"></span>
+                </div>
+                <input type="text" name="website" id="rqWebsite" tabindex="-1" autocomplete="off" aria-hidden="true" class="absolute -left-[9999px] w-px h-px opacity-0">
+                <div class="px-5 py-3">
+                    <textarea id="rqMessage" rows="8" maxlength="3000" required placeholder="Write your message... For a takedown, say who owns the content and how to verify it. For an update, say what changed or what's broken." class="w-full bg-transparent text-white focus:outline-none resize-y placeholder:text-soft/30"></textarea>
+                </div>
+                <div id="rqError" class="hidden px-5 pb-2 text-xs text-red-400 break-words"></div>
+                <div class="flex items-center justify-between gap-3 px-5 py-3 border-t border-white/15 bg-white/5">
+                    <span class="text-[10px] text-soft/50"><span id="rqCount">0</span>/3000</span>
+                    <button type="submit" id="rqSendBtn" class="px-6 py-2 rounded-lg bg-white text-black text-xs font-black uppercase tracking-wider hover:bg-soft transition shadow-[0_0_15px_rgba(var(--accent-rgb)/0.6)]"><i class="fa-solid fa-paper-plane mr-1"></i> Send</button>
+                </div>
+            </form>
+
+            <!-- sent -->
+            <div id="rqSent" class="hidden px-6 py-10 text-center font-mono">
+                <i class="fa-regular fa-circle-check text-4xl text-white mb-3"></i>
+                <div class="text-lg font-bold text-white mb-2">Message sent</div>
+                <p class="text-xs text-soft/70 mb-4">The developer will answer here. Your ticket code (kept on this device):</p>
+                <div id="rqSentCode" class="inline-block px-4 py-2 mb-4 rounded-lg border border-dashed border-white/50 text-white tracking-widest select-all"></div>
+                <p class="text-[11px] text-soft/50 mb-5">Write it down if you want to check from another device. Open <b>My Requests</b> to see replies.</p>
+                <button type="button" onclick="showRqTab('mine')" class="px-6 py-2 rounded-lg border border-white/40 text-xs uppercase hover:bg-white hover:text-black transition">View my requests</button>
+            </div>
+
+            <!-- my requests -->
+            <div id="rqMine" class="hidden font-mono text-sm">
+                <div id="rqMineList" class="max-h-[50vh] overflow-y-auto divide-y divide-white/10"></div>
+                <div id="rqThread" class="hidden"></div>
+                <form onsubmit="addTicketByCode(event)" class="flex gap-2 px-5 py-3 border-t border-white/15 bg-white/5">
+                    <input type="text" id="rqCodeInput" maxlength="13" autocomplete="off" placeholder="Have a ticket code? SM-XXXXXXXXXX" class="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-black/60 border border-white/20 text-xs text-white focus:outline-none focus:border-white uppercase">
+                    <button class="px-4 py-1.5 rounded-lg border border-white/40 text-xs uppercase hover:bg-white hover:text-black transition">Add</button>
+                </form>
+                <div id="rqMineError" class="hidden px-5 pb-3 text-xs text-red-400"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="inboxModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="max-w-5xl w-full h-[85vh] glass-panel border border-white/30 rounded-2xl relative glow-heavy flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-white/20 bg-white/5">
+                <div class="flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-white"><i class="fa-solid fa-inbox"></i> Developer inbox <span id="inboxCount" class="text-soft/50"></span></div>
+                <button onclick="closeInbox()" class="text-soft/60 hover:text-white" title="Close"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="flex-1 min-h-0 grid md:grid-cols-[330px_1fr]">
+                <div id="inboxListPane" class="min-h-0 flex flex-col border-r border-white/15">
+                    <div class="grid grid-cols-2 border-b border-white/10 font-mono text-xs uppercase">
+                        <button id="inboxTabOpen" onclick="setInboxFilter('open')" class="py-2 text-white border-b-2 border-white">Open</button>
+                        <button id="inboxTabClosed" onclick="setInboxFilter('closed')" class="py-2 text-soft/60 border-b-2 border-transparent">Closed</button>
+                    </div>
+                    <div id="inboxList" class="flex-1 overflow-y-auto divide-y divide-white/10"></div>
+                </div>
+                <div id="inboxThreadPane" class="hidden md:flex min-h-0 flex-col font-mono text-sm">
+                    <div id="inboxEmpty" class="flex-1 flex items-center justify-center text-soft/40 text-xs">Select a message</div>
+                    <div id="inboxThread" class="hidden flex-1 min-h-0 flex-col"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="postModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
         <div class="max-w-xl w-full glass-panel border border-white/30 rounded-2xl p-6 md:p-8 relative glow-heavy my-8">
             <button onclick="closePostModal()" class="absolute top-4 right-4 text-soft/60 hover:text-white">
@@ -610,6 +714,10 @@
             await refreshSession();
             markTheme();
             await loadPosts();
+            updateMyReqBtn(); refreshMine(true);
+            setInterval(() => { if (!document.hidden && loadTickets().length) refreshMine(true); }, 120000);
+            const want = Number(new URLSearchParams(location.search).get('request'));   // /?request=<mod id> from a mod's own page
+            if (want && posts.some((p) => p.id === want)) { openRequestModal(want); history.replaceState(null, '', location.pathname); }
         });
 
         function applySession(s) {
@@ -648,6 +756,9 @@
             $('openAuthBtn').classList.toggle('hidden', loggedIn);
             $('createPostBtn').classList.toggle('hidden', !can('post'));
             $('announceBtn').classList.toggle('hidden', !can('announce'));
+            $('inboxBtn').classList.toggle('hidden', !can('inbox'));
+            $('inboxBtn').classList.toggle('flex', can('inbox'));
+            if (can('inbox')) pollInboxBadge(); else { setInboxBadge(0); closeInbox(); }
             $('usersBtn').classList.toggle('hidden', !isOwner);
             $('createPageBtn').classList.toggle('hidden', !isOwner);
             if (!isOwner) closePagesModal();
@@ -976,11 +1087,11 @@
 
         async function patchUser(body, okMessage) {
             try {
-                await api('/api/users/' + managingId, { method: 'PATCH', body: JSON.stringify(body) });
+                const out = await api('/api/users/' + managingId, { method: 'PATCH', body: JSON.stringify(body) });
                 await loadUsers();
                 renderUsers();
                 fillUserModal();
-                userModalMessage(okMessage, '');
+                userModalMessage(typeof okMessage === 'function' ? okMessage(out) : okMessage, '');
             } catch (err) {
                 userModalMessage('', err.message);
                 if (err.status === 401 || err.status === 403) await refreshSession();
@@ -1005,7 +1116,8 @@
             const u = usersData.users.find((x) => x.id === managingId);
             const days = Number($('umDays').value);
             if (!u || !confirm('Ban ' + u.username + ' for ' + days + ' day' + (days === 1 ? '' : 's') + '?')) return;
-            await patchUser({ ban: { days, reason: $('umReason').value } }, 'Banned for ' + days + ' day' + (days === 1 ? '' : 's') + '.');
+            const ip = $('umBlockIp').checked;
+            await patchUser({ ban: { days, reason: $('umReason').value, ip } }, (out) => 'Banned for ' + days + ' day' + (days === 1 ? '' : 's') + '.' + (ip ? ' ' + (out.ipsBanned || 0) + ' connection' + (out.ipsBanned === 1 ? '' : 's') + ' blocked.' : ''));
         }
 
         async function unbanUser() { await patchUser({ unban: true }, 'Ban lifted.'); }
@@ -1157,6 +1269,9 @@
                             <a href="${esc(safeUrl(post.fileLink))}" target="_blank" rel="noopener noreferrer" class="flex-grow py-2 px-4 rounded-xl border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 text-center font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-download text-xs"></i> Get File
                             </a>
+                            <button onclick="openRequestModal(${post.id})" title="Request a takedown or an update" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
+                                <i class="fa-regular fa-envelope"></i>
+                            </button>
                             <button onclick="copyModLink(${post.id}, this)" title="Copy link to this mod" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
                                 <i class="fa-solid fa-link"></i>
                             </button>
@@ -1172,6 +1287,269 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        /* ---------- takedown / update requests ---------- */
+        const TK_KEY = 'shek_tickets';
+        const loadTickets = () => { try { const a = JSON.parse(localStorage.getItem(TK_KEY) || '[]'); return Array.isArray(a) ? a.filter((t) => t && typeof t.code === 'string') : []; } catch (e) { return []; } };
+        const saveTickets = (a) => { try { localStorage.setItem(TK_KEY, JSON.stringify(a.slice(0, 30))); } catch (e) {} };
+        const RQ_LABEL = { takedown: 'Takedown request', update: 'Update request' };
+        const fmtTime = (ms) => new Date(ms).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        let rqPost = null, rqType = 'update', rqThreads = [], rqOpenCode = null;
+        const rqErr = (m) => { const e = $('rqError'); e.textContent = m || ''; e.classList.toggle('hidden', !m); };
+        const rqMineErr = (m) => { const e = $('rqMineError'); e.textContent = m || ''; e.classList.toggle('hidden', !m); };
+
+        function msgBubbles(t, ownerView) {
+            return t.messages.map((m) => {
+                const dev = m.from === 'dev';
+                const who = dev ? 'DEVELOPER' : (ownerView ? t.name : 'You');
+                return `<div class="flex ${dev ? 'justify-end' : ''}">
+                    <div class="max-w-[88%] px-4 py-2.5 rounded-xl border ${dev ? 'border-white/60 bg-white/10' : 'border-white/20 bg-black/50'}">
+                        <div class="flex items-center gap-2 text-[10px] uppercase tracking-wider ${dev ? 'text-white' : 'text-soft/60'} mb-1">
+                            <span class="font-bold">${esc(who)}</span><span class="text-soft/40">${esc(fmtTime(m.time))}</span>
+                        </div>
+                        <div class="text-soft/90 whitespace-pre-wrap break-words text-[13px] leading-relaxed">${esc(m.body)}</div>
+                    </div></div>`;
+            }).join('');
+        }
+
+        function setRqType(t) {
+            rqType = t;
+            const on = 'px-3 py-1 rounded-lg border text-xs border-white bg-white text-black font-bold';
+            const off = 'px-3 py-1 rounded-lg border text-xs border-white/20 bg-black text-soft/80 hover:border-white';
+            $('rqTypeTakedown').className = t === 'takedown' ? on : off;
+            $('rqTypeUpdate').className = t === 'update' ? on : off;
+            $('rqSubject').textContent = RQ_LABEL[t] + (rqPost ? ' — ' + rqPost.title : '');
+        }
+
+        function showRqTab(tab) {
+            if (tab === 'compose' && !rqPost) tab = 'mine';
+            const mine = tab === 'mine';
+            $('rqCompose').classList.toggle('hidden', mine);
+            $('rqSent').classList.add('hidden');
+            $('rqMine').classList.toggle('hidden', !mine);
+            $('rqTabCompose').className = 'py-2.5 border-b-2 ' + (mine ? 'text-soft/60 border-transparent hover:text-white' : 'text-white border-white bg-white/5');
+            $('rqTabMine').className = 'py-2.5 border-b-2 ' + (mine ? 'text-white border-white bg-white/5' : 'text-soft/60 border-transparent hover:text-white');
+            if (mine) { rqOpenCode = null; refreshMine(false); }
+        }
+
+        function openRequestModal(postId, tab) {
+            rqPost = postId ? posts.find((p) => p.id === postId) || null : null;
+            rqErr(''); rqMineErr('');
+            $('rqMessage').value = ''; $('rqCount').textContent = '0'; $('rqWebsite').value = ''; $('rqContact').value = '';
+            const nm = $('rqName');
+            if (me || isOwner) { nm.value = isOwner ? 'Owner' : me.username; nm.readOnly = true; } else { nm.value = ''; nm.readOnly = false; }
+            $('rqTitle').textContent = rqPost ? 'New message — ' + rqPost.title : 'My requests';
+            setRqType(rqType);
+            $('requestModal').classList.remove('hidden');
+            showRqTab(tab === 'mine' || !rqPost ? 'mine' : 'compose');
+        }
+        function closeRequestModal() { $('requestModal').classList.add('hidden'); refreshMine(true); }
+
+        async function sendRequest(e) {
+            e.preventDefault(); rqErr('');
+            if (!rqPost) return;
+            const btn = $('rqSendBtn'); btn.disabled = true;
+            try {
+                const out = await api('/api/requests', { method: 'POST', body: JSON.stringify({
+                    postId: rqPost.id, type: rqType, name: $('rqName').value, contact: $('rqContact').value,
+                    message: $('rqMessage').value, website: $('rqWebsite').value,
+                }) });
+                const t = loadTickets().filter((x) => x.code !== out.code);
+                t.unshift({ code: out.code, seen: 1, title: rqPost.title, type: rqType });
+                saveTickets(t);
+                $('rqMessage').value = ''; $('rqCount').textContent = '0';
+                $('rqCompose').classList.add('hidden');
+                $('rqSentCode').textContent = out.code;
+                $('rqSent').classList.remove('hidden');
+                updateMyReqBtn();
+            } catch (err) { rqErr(err.message); }
+            btn.disabled = false;
+        }
+
+        async function fetchThreads(codes) {
+            if (!codes.length) return [];
+            const out = await api('/api/requests/lookup', { method: 'POST', body: JSON.stringify({ codes }) });
+            return out.threads || [];
+        }
+
+        function updateMyReqBtn() {
+            const has = loadTickets().length > 0;
+            $('myReqBtn').classList.toggle('hidden', !has);
+            $('myReqBtn').classList.toggle('flex', has);
+        }
+
+        // Which tickets have developer replies the person hasn't looked at yet?
+        function newReplyCount(threads) {
+            const seen = Object.fromEntries(loadTickets().map((t) => [t.code, t.seen || 0]));
+            return threads.filter((t) => t.messages.length > (seen[t.code] || 0) && t.messages[t.messages.length - 1].from === 'dev').length;
+        }
+        function setMyReqBadge(n) { const b = $('myReqBadge'); b.textContent = n; b.classList.toggle('hidden', !n); }
+
+        async function refreshMine(background) {
+            updateMyReqBtn();
+            const tickets = loadTickets();
+            try { rqThreads = await fetchThreads(tickets.map((t) => t.code)); } catch (e) { if (!background) rqMineErr(e.message); return; }
+            setMyReqBadge(newReplyCount(rqThreads));
+            if (background) return;
+            $('rqMineCount').textContent = tickets.length ? '(' + tickets.length + ')' : '';
+            renderMine();
+        }
+
+        function renderMine() {
+            $('rqThread').classList.add('hidden'); $('rqMineList').classList.remove('hidden');
+            const seen = Object.fromEntries(loadTickets().map((t) => [t.code, t.seen || 0]));
+            if (!rqThreads.length) { $('rqMineList').innerHTML = '<div class="px-5 py-10 text-center text-xs text-soft/50">No requests yet. Click the envelope on a mod to send one.</div>'; return; }
+            $('rqMineList').innerHTML = rqThreads.map((t) => {
+                const last = t.messages[t.messages.length - 1];
+                const fresh = t.messages.length > (seen[t.code] || 0) && last.from === 'dev';
+                return `<button onclick="openTicket('${esc(t.code)}')" class="w-full text-left px-5 py-3 hover:bg-white/5 transition ${fresh ? 'bg-white/5' : ''}">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="truncate ${fresh ? 'text-white font-bold' : 'text-soft/90'}">${esc(RQ_LABEL[t.type] || t.type)} — ${esc(t.postTitle)}</span>
+                        <span class="shrink-0 text-[10px] uppercase px-2 py-0.5 rounded-full border ${t.status === 'open' ? 'border-white/50 text-white' : 'border-white/20 text-soft/50'}">${t.status === 'open' ? (last.from === 'dev' ? 'answered' : 'waiting') : 'closed'}</span>
+                    </div>
+                    <div class="text-[11px] text-soft/50 truncate mt-0.5">${fresh ? 'New reply from DEVELOPER · ' : ''}${esc(last.body)}</div>
+                </button>`;
+            }).join('');
+        }
+
+        function openTicket(code) {
+            const t = rqThreads.find((x) => x.code === code);
+            if (!t) return;
+            rqOpenCode = code;
+            const tickets = loadTickets();
+            const tk = tickets.find((x) => x.code === code);
+            if (tk) { tk.seen = t.messages.length; saveTickets(tickets); }
+            setMyReqBadge(newReplyCount(rqThreads));
+            $('rqMineList').classList.add('hidden');
+            const box = $('rqThread'); box.classList.remove('hidden');
+            box.innerHTML = `
+                <div class="flex items-center justify-between gap-3 px-5 py-3 border-b border-white/10">
+                    <button onclick="renderMine()" class="text-xs text-soft/70 hover:text-white"><i class="fa-solid fa-arrow-left mr-1"></i> Back</button>
+                    <div class="text-xs text-soft/50 truncate">${esc(t.code)} · ${esc(t.status)}</div>
+                </div>
+                <div class="px-5 pt-3 text-white font-bold">${esc(RQ_LABEL[t.type] || t.type)} — ${esc(t.postTitle)}</div>
+                <div class="px-5 py-3 space-y-3 max-h-[36vh] overflow-y-auto">${msgBubbles(t, false)}</div>
+                ${t.status === 'open' ? `<form onsubmit="sendTicketReply(event)" class="px-5 py-3 border-t border-white/10 flex gap-2 items-end">
+                    <textarea id="rqReply" rows="2" maxlength="3000" required placeholder="Write a follow-up..." class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-white text-sm focus:outline-none focus:border-white"></textarea>
+                    <button class="px-4 py-2 rounded-lg bg-white text-black text-xs font-black uppercase">Send</button></form>`
+                    : '<div class="px-5 py-3 border-t border-white/10 text-xs text-soft/50">This request is closed.</div>'}`;
+        }
+
+        async function sendTicketReply(e) {
+            e.preventDefault(); rqMineErr('');
+            try {
+                const t = await api('/api/requests/reply', { method: 'POST', body: JSON.stringify({ code: rqOpenCode, body: $('rqReply').value }) });
+                rqThreads = rqThreads.map((x) => (x.code === t.code ? t : x));
+                openTicket(t.code);
+            } catch (err) { rqMineErr(err.message); }
+        }
+
+        async function addTicketByCode(e) {
+            e.preventDefault(); rqMineErr('');
+            const code = $('rqCodeInput').value.trim().toUpperCase();
+            if (!/^SM-[A-Z2-9]{10}$/.test(code)) return rqMineErr('That doesn\'t look like a ticket code (SM-XXXXXXXXXX).');
+            try {
+                const found = await fetchThreads([code]);
+                if (!found.length) return rqMineErr('No request found with that code.');
+                const t = loadTickets().filter((x) => x.code !== code);
+                t.unshift({ code, seen: 0, title: found[0].postTitle, type: found[0].type });
+                saveTickets(t); $('rqCodeInput').value = '';
+                await refreshMine(false);
+            } catch (err) { rqMineErr(err.message); }
+        }
+
+        document.addEventListener('input', (e) => { if (e.target && e.target.id === 'rqMessage') $('rqCount').textContent = e.target.value.length; });
+
+        /* ---------- developer inbox ---------- */
+        let inboxItems = [], inboxFilter = 'open', inboxCur = null;
+        function setInboxBadge(n) { const b = $('inboxBadge'); b.textContent = n; b.classList.toggle('hidden', !n); }
+        async function pollInboxBadge() {
+            if (!can('inbox')) return;
+            try { const d = await api('/api/inbox'); inboxItems = d.items; setInboxBadge(d.unread); if (!$('inboxModal').classList.contains('hidden')) renderInboxList(); } catch (e) {}
+        }
+        setInterval(() => { if (!document.hidden) pollInboxBadge(); }, 60000);
+
+        async function openInbox() {
+            if (!can('inbox')) return;
+            $('inboxModal').classList.remove('hidden');
+            inboxCur = null; showInboxThread(null);
+            await pollInboxBadge();
+            renderInboxList();
+        }
+        function closeInbox() { $('inboxModal').classList.add('hidden'); }
+        function setInboxFilter(f) {
+            inboxFilter = f;
+            $('inboxTabOpen').className = 'py-2 border-b-2 ' + (f === 'open' ? 'text-white border-white' : 'text-soft/60 border-transparent');
+            $('inboxTabClosed').className = 'py-2 border-b-2 ' + (f === 'closed' ? 'text-white border-white' : 'text-soft/60 border-transparent');
+            renderInboxList();
+        }
+        function renderInboxList() {
+            const list = inboxItems.filter((i) => i.status === inboxFilter);
+            $('inboxCount').textContent = '(' + inboxItems.filter((i) => i.status === 'open').length + ' open)';
+            $('inboxList').innerHTML = list.length ? list.map((i) => `
+                <button onclick="openInboxThread(${i.id})" class="w-full text-left px-4 py-3 hover:bg-white/5 transition ${inboxCur && inboxCur.id === i.id ? 'bg-white/10' : ''}">
+                    <div class="flex items-center gap-2">
+                        ${i.unread ? '<span class="w-2 h-2 rounded-full bg-white shadow-[0_0_8px_rgba(var(--accent-rgb)/0.9)] shrink-0"></span>' : ''}
+                        <span class="truncate ${i.unread ? 'text-white font-bold' : 'text-soft/90'} text-xs">${esc(i.name)}</span>
+                        <span class="ml-auto shrink-0 text-[10px] px-1.5 rounded border ${i.type === 'takedown' ? 'border-red-400/60 text-red-300' : 'border-white/40 text-white'} uppercase">${esc(i.type)}</span>
+                    </div>
+                    <div class="text-xs truncate mt-0.5 ${i.unread ? 'text-white' : 'text-soft/80'}">${esc(i.postTitle)}</div>
+                    <div class="text-[11px] text-soft/50 truncate">${i.awaitingReply ? '↩ needs reply · ' : ''}${esc(i.snippet)}</div>
+                </button>`).join('') : '<div class="px-4 py-10 text-center text-xs text-soft/40">Nothing here</div>';
+        }
+        function showInboxThread(t) {
+            $('inboxEmpty').classList.toggle('hidden', !!t);
+            const box = $('inboxThread');
+            box.classList.toggle('hidden', !t); box.classList.toggle('flex', !!t);
+            // on phones show either the list or the thread
+            $('inboxThreadPane').classList.toggle('hidden', !t); $('inboxThreadPane').classList.toggle('flex', !!t);
+            $('inboxListPane').classList.toggle('hidden', !!t && window.innerWidth < 768);
+            if (!t) return;
+            box.innerHTML = `
+                <div class="px-5 py-3 border-b border-white/15 bg-white/5">
+                    <button onclick="inboxCur=null;showInboxThread(null);renderInboxList()" class="md:hidden text-xs text-soft/70 mb-2"><i class="fa-solid fa-arrow-left mr-1"></i> Back</button>
+                    <div class="text-white font-bold break-words">${esc(RQ_LABEL[t.type] || t.type)} — ${esc(t.postTitle)}</div>
+                    <div class="text-[11px] text-soft/60 mt-1 break-words">From <b class="text-soft/90">${esc(t.name)}</b>${t.userId ? ' (account)' : ' (not logged in)'}${t.contact ? ' · reach: <b class="text-soft/90 select-all">' + esc(t.contact) + '</b>' : ''} · ${esc(fmtTime(t.createdAt))}</div>
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <a href="/mod/${t.postId}" target="_blank" rel="noopener" class="px-3 py-1 rounded-lg border border-white/30 text-[11px] uppercase hover:bg-white hover:text-black transition">Open mod</a>
+                        <button onclick="setInboxStatus('${t.status === 'open' ? 'closed' : 'open'}')" class="px-3 py-1 rounded-lg border border-white/30 text-[11px] uppercase hover:bg-white hover:text-black transition">${t.status === 'open' ? 'Close request' : 'Reopen'}</button>
+                        <button onclick="deleteInboxThread()" class="px-3 py-1 rounded-lg border border-red-500/40 text-red-400 text-[11px] uppercase hover:bg-red-500/20 transition">Delete</button>
+                    </div>
+                </div>
+                <div id="inboxMsgs" class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3">${msgBubbles(t, true)}</div>
+                <form onsubmit="sendInboxReply(event)" class="px-5 py-3 border-t border-white/15 bg-white/5">
+                    <textarea id="inboxReply" rows="3" maxlength="3000" required placeholder="Reply as DEVELOPER..." class="w-full px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-white text-sm focus:outline-none focus:border-white"></textarea>
+                    <div class="flex items-center justify-between mt-2">
+                        <span id="inboxErr" class="text-xs text-red-400"></span>
+                        <button class="px-5 py-2 rounded-lg bg-white text-black text-xs font-black uppercase shadow-[0_0_15px_rgba(var(--accent-rgb)/0.6)]"><i class="fa-solid fa-reply mr-1"></i> Send reply</button>
+                    </div>
+                </form>`;
+            const m = $('inboxMsgs'); m.scrollTop = m.scrollHeight;
+        }
+        async function openInboxThread(id) {
+            try {
+                inboxCur = await api('/api/inbox/' + id);
+                const it = inboxItems.find((x) => x.id === id); if (it) it.unread = false;
+                setInboxBadge(inboxItems.filter((x) => x.unread).length);
+                showInboxThread(inboxCur); renderInboxList();
+            } catch (err) { alert(err.message); }
+        }
+        async function sendInboxReply(e) {
+            e.preventDefault();
+            try {
+                inboxCur = await api('/api/inbox/' + inboxCur.id + '/reply', { method: 'POST', body: JSON.stringify({ body: $('inboxReply').value }) });
+                showInboxThread(inboxCur); await pollInboxBadge();
+            } catch (err) { $('inboxErr').textContent = err.message; }
+        }
+        async function setInboxStatus(status) {
+            try { await api('/api/inbox/' + inboxCur.id, { method: 'PATCH', body: JSON.stringify({ status }) }); inboxCur.status = status; await pollInboxBadge(); showInboxThread(inboxCur); }
+            catch (err) { alert(err.message); }
+        }
+        async function deleteInboxThread() {
+            if (!confirm('Delete this whole conversation? This cannot be undone.')) return;
+            try { await api('/api/inbox/' + inboxCur.id, { method: 'DELETE' }); inboxCur = null; showInboxThread(null); await pollInboxBadge(); renderInboxList(); }
+            catch (err) { alert(err.message); }
         }
 
         function initCanvas() {
