@@ -129,6 +129,14 @@
             animation: pulseGlow 3s infinite ease-in-out;
         }
     </style>
+<style>
+    .admin-menu { display: none; position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; min-width: 13rem; padding: 6px;
+        border: 1px solid rgba(var(--accent-rgb)/0.45); border-radius: 12px; background: #050506;
+        box-shadow: 0 0 24px rgba(var(--accent-rgb)/0.3), inset 0 0 12px rgba(var(--accent-rgb)/0.08); }
+    .admin-menu.open { display: block; }
+    .admin-menu > button.flex, .admin-menu > button:not(.hidden) { display: flex; }
+    .admin-menu > button.hidden { display: none; }
+</style>
 </head>
 <body class="relative min-h-screen grid-bg">
 
@@ -154,25 +162,34 @@
                         <i class="fa-solid fa-user text-xs"></i> Log in / Sign up
                     </button>
                     
-                    <div id="themePicker" class="hidden items-center gap-1 px-2 py-1 border border-white/30 rounded-lg bg-black/60" title="Site theme: everyone sees the one you pick">
-                        <span class="text-[10px] font-mono uppercase text-soft/60 mr-1">Theme</span>
-                        <button class="theme-btn" data-theme-btn="summer" onclick="setSiteTheme('summer')" title="Summer">☀️</button>
-                        <button class="theme-btn" data-theme-btn="fall" onclick="setSiteTheme('fall')" title="Fall / Halloween">🎃</button>
-                        <button class="theme-btn" data-theme-btn="winter" onclick="setSiteTheme('winter')" title="Winter">❄️</button>
-                        <button class="theme-btn" data-theme-btn="spring" onclick="setSiteTheme('spring')" title="Spring">🌸</button>
+                    <div id="adminMenuWrap" class="hidden relative">
+                        <button id="adminMenuBtn" type="button" onclick="toggleAdminMenu(event)" aria-haspopup="true" aria-expanded="false" class="relative px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Admin tools">
+                            <i class="fa-solid fa-screwdriver-wrench text-xs"></i> Admin <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                            <span id="adminMenuBadge" class="hidden absolute -top-2 -right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(var(--accent-rgb)/0.9)]"></span>
+                        </button>
+                        <div id="adminMenu" class="admin-menu" role="menu">
+                            <button id="usersBtn" onclick="closeAdminMenu(); openUsersModal()" class="hidden w-full text-left px-3 py-2 rounded-md hover:bg-white hover:text-black transition-colors font-mono text-xs uppercase tracking-wider font-bold items-center gap-2 flex" title="Manage accounts: roles, permissions, bans">
+                                <i class="fa-solid fa-users text-xs w-4 text-center"></i> Users
+                            </button>
+                            <button id="createPageBtn" onclick="closeAdminMenu(); openPagesModal()" class="hidden w-full text-left px-3 py-2 rounded-md hover:bg-white hover:text-black transition-colors font-mono text-xs uppercase tracking-wider font-bold items-center gap-2 flex" title="Create a permanent page from your own HTML (owner only)">
+                                <i class="fa-solid fa-file-code text-xs w-4 text-center"></i> Create Page
+                            </button>
+                            <button id="announceBtn" onclick="closeAdminMenu(); openAnnounceModal()" class="hidden w-full text-left px-3 py-2 rounded-md hover:bg-white hover:text-black transition-colors font-mono text-xs uppercase tracking-wider font-bold items-center gap-2 flex" title="Send an announcement to everyone">
+                                <i class="fa-solid fa-bullhorn text-xs w-4 text-center"></i> Announce
+                            </button>
+                            <button id="inboxBtn" onclick="closeAdminMenu(); openInbox()" class="hidden w-full text-left px-3 py-2 rounded-md hover:bg-white hover:text-black transition-colors font-mono text-xs uppercase tracking-wider font-bold items-center gap-2" title="Takedown and update requests from visitors">
+                                <i class="fa-solid fa-inbox text-xs w-4 text-center"></i> Inbox
+                                <span id="inboxBadge" class="hidden ml-auto min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(var(--accent-rgb)/0.9)]"></span>
+                            </button>
+                            <div id="themePicker" class="hidden items-center gap-1 px-3 py-2 mt-1 border-t border-white/20" title="Site theme: everyone sees the one you pick">
+                                <span class="text-[10px] font-mono uppercase text-soft/60 mr-1">Theme</span>
+                                <button class="theme-btn" data-theme-btn="summer" onclick="setSiteTheme('summer')" title="Summer">☀️</button>
+                                <button class="theme-btn" data-theme-btn="fall" onclick="setSiteTheme('fall')" title="Fall / Halloween">🎃</button>
+                                <button class="theme-btn" data-theme-btn="winter" onclick="setSiteTheme('winter')" title="Winter">❄️</button>
+                                <button class="theme-btn" data-theme-btn="spring" onclick="setSiteTheme('spring')" title="Spring">🌸</button>
+                            </div>
+                        </div>
                     </div>
-
-                    <button id="usersBtn" onclick="openUsersModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Manage accounts: roles, permissions, bans">
-                        <i class="fa-solid fa-users text-xs"></i> Users
-                    </button>
-
-                    <button id="createPageBtn" onclick="openPagesModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Create a permanent page from your own HTML (owner only)">
-                        <i class="fa-solid fa-file-code text-xs"></i> Create Page
-                    </button>
-
-                    <button id="announceBtn" onclick="openAnnounceModal()" class="hidden px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Send an announcement to everyone">
-                        <i class="fa-solid fa-bullhorn text-xs"></i> Announce
-                    </button>
 
                     <a href="/staff/" class="px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Who makes the mods">
                         <i class="fa-solid fa-user-group text-xs"></i> Staff Team
@@ -181,11 +198,6 @@
                     <button id="myReqBtn" onclick="openRequestModal(null, 'mine')" class="hidden relative px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm items-center gap-2" title="Your takedown / update requests and the developer's replies">
                         <i class="fa-regular fa-envelope text-xs"></i> My Requests
                         <span id="myReqBadge" class="hidden absolute -top-2 -right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(var(--accent-rgb)/0.9)]"></span>
-                    </button>
-
-                    <button id="inboxBtn" onclick="openInbox()" class="hidden relative px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm items-center gap-2" title="Takedown and update requests from visitors">
-                        <i class="fa-solid fa-inbox text-xs"></i> Inbox
-                        <span id="inboxBadge" class="hidden absolute -top-2 -right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(var(--accent-rgb)/0.9)]"></span>
                     </button>
 
                     <button id="createPostBtn" onclick="openPostModal()" class="hidden px-4 py-1.5 rounded-lg bg-white text-black hover:bg-soft transition-all duration-300 font-mono text-xs uppercase tracking-wider font-extrabold shadow-[0_0_15px_rgba(var(--accent-rgb)/0.7)] flex items-center gap-2">
@@ -745,6 +757,15 @@
             try { applySession(await api('/api/session')); } catch (e) {}
         }
 
+        function closeAdminMenu() { $('adminMenu').classList.remove('open'); $('adminMenuBtn').setAttribute('aria-expanded', 'false'); }
+        function toggleAdminMenu(e) {
+            if (e) e.stopPropagation();
+            const open = $('adminMenu').classList.toggle('open');
+            $('adminMenuBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        document.addEventListener('click', (e) => { if (!e.target.closest('#adminMenuWrap')) closeAdminMenu(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAdminMenu(); });
+
         function updateAuthUI() {
             const loggedIn = isOwner || !!me;
             const badge = $('adminBadge');
@@ -760,6 +781,9 @@
             $('usersBtn').classList.toggle('hidden', !isOwner);
             $('createPageBtn').classList.toggle('hidden', !isOwner);
             if (!isOwner) closePagesModal();
+            const anyTool = isOwner || can('announce') || can('inbox') || can('theme');
+            $('adminMenuWrap').classList.toggle('hidden', !anyTool);
+            if (!anyTool) closeAdminMenu();
             const picker = $('themePicker');
             picker.classList.toggle('hidden', !can('theme'));
             picker.classList.toggle('flex', can('theme'));
@@ -1461,7 +1485,10 @@
 
         /* ---------- developer inbox ---------- */
         let inboxItems = [], inboxFilter = 'open', inboxCur = null;
-        function setInboxBadge(n) { const b = $('inboxBadge'); b.textContent = n; b.classList.toggle('hidden', !n); }
+        function setInboxBadge(n) {
+            const b = $('inboxBadge'); b.textContent = n; b.classList.toggle('hidden', !n);
+            const m = $('adminMenuBadge'); m.textContent = n; m.classList.toggle('hidden', !n);
+        }
         async function pollInboxBadge() {
             if (!can('inbox')) return;
             try { const d = await api('/api/inbox'); inboxItems = d.items; setInboxBadge(d.unread); if (!$('inboxModal').classList.contains('hidden')) renderInboxList(); } catch (e) {}
