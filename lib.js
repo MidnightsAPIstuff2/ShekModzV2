@@ -20,6 +20,7 @@ const PERMISSIONS = [
   { key: 'delete', label: 'Delete mods' },
   { key: 'announce', label: 'Send announcements' },
   { key: 'theme', label: 'Change site theme' },
+  { key: 'inbox', label: 'Answer takedown & update requests' },
 ];
 const PERM_KEYS = PERMISSIONS.map((p) => p.key);
 const ROLES = {
@@ -57,6 +58,41 @@ function getDb() {
         ban_reason TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT (date('now'))
       )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS user_ips (
+        user_id INTEGER NOT NULL,
+        ip_hash TEXT NOT NULL,
+        seen_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, ip_hash)
+      )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS ip_bans (
+        ip_hash TEXT NOT NULL,
+        user_id INTEGER NOT NULL,
+        until INTEGER NOT NULL,
+        reason TEXT NOT NULL DEFAULT ''
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS ip_bans_hash ON ip_bans (ip_hash)');
+      await client.execute(`CREATE TABLE IF NOT EXISTS requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE,
+        post_id INTEGER NOT NULL,
+        post_title TEXT NOT NULL,
+        type TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'open',
+        name TEXT NOT NULL,
+        contact TEXT NOT NULL DEFAULT '',
+        user_id INTEGER NOT NULL DEFAULT 0,
+        unread INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS request_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id INTEGER NOT NULL,
+        sender TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS request_messages_req ON request_messages (request_id)');
       await client.execute(`CREATE TABLE IF NOT EXISTS pages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         slug TEXT NOT NULL UNIQUE,
@@ -183,15 +219,71 @@ function authForUser(u) {
   if (until > Date.now()) return { owner: false, banned: { until, reason: String(u.ban_reason || '') }, perms: new Set() };
   return { owner: false, user: u, perms: new Set(effectivePerms(u)) };
 }
+/* ---------- IP tracking (for bans) ----------
+   Only a keyed hash of the connection is stored, never the raw address. When the owner bans an
+   account, the connections that account used in the last 24 hours are banned for the same time. */
+const IP_WINDOW_MS = 24 * 60 * 60 * 1000;
+function clientIp(req) {
+  const h = req.headers;
+  const raw = String(h['x-vercel-forwarded-for'] || h['x-real-ip'] || (h['x-forwarded-for'] || '').split(',')[0] || (req.socket && req.socket.remoteAddress) || '').trim();
+  return raw.replace(/^::ffff:/i, '');
+}
+function normalizeIp(ip) {
+  if (!ip.includes(':')) return ip;                       // IPv4
+  // IPv6: people get a whole /64, so keep the first 4 groups
+  let [head, tail] = ip.split('::');
+  const a = head ? head.split(':') : [];
+  const b = tail !== undefined && tail ? tail.split(':') : [];
+  const groups = tail === undefined ? a : [...a, ...Array(Math.max(0, 8 - a.length - b.length)).fill('0'), ...b];
+  return groups.slice(0, 4).map((g) => (g || '0').toLowerCase().replace(/^0+(?=.)/, '')).join(':');
+}
+function ipHash(req) {
+  const ip = clientIp(req);
+  if (!ip) return '';
+  const key = 'ipban:' + (process.env.SESSION_SECRET || '') + ':' + (process.env.ADMIN_PASSWORD || '');
+  return crypto.createHmac('sha256', key).update(normalizeIp(ip)).digest('base64url').slice(0, 22);
+}
+async function ipBanFor(req) {
+  const h = ipHash(req);
+  if (!h) return null;
+  const db = await getDb();
+  const r = (await db.execute({ sql: 'SELECT until, reason FROM ip_bans WHERE ip_hash = ? AND until > ? ORDER BY until DESC LIMIT 1', args: [h, Date.now()] })).rows[0];
+  return r ? { until: Number(r.until), reason: String(r.reason || '') } : null;
+}
+const ipSeen = new Map();
+async function recordIp(userId, req) {
+  const h = ipHash(req);
+  if (!h) return;
+  const key = userId + ':' + h, now = Date.now();
+  if (now - (ipSeen.get(key) || 0) < 30 * 60 * 1000) return;       // at most one write per 30 min
+  ipSeen.set(key, now);
+  if (ipSeen.size > 5000) ipSeen.clear();
+  const db = await getDb();
+  await db.execute({ sql: 'INSERT INTO user_ips (user_id, ip_hash, seen_at) VALUES (?,?,?) ON CONFLICT(user_id, ip_hash) DO UPDATE SET seen_at = excluded.seen_at', args: [userId, h, now] });
+  if (Math.random() < 0.02) {                                       // tidy up old rows now and then
+    await db.execute({ sql: 'DELETE FROM user_ips WHERE seen_at < ?', args: [now - 7 * 24 * 60 * 60 * 1000] }).catch(() => {});
+    await db.execute({ sql: 'DELETE FROM ip_bans WHERE until < ?', args: [now] }).catch(() => {});
+  }
+}
+
 // Who is making this request? Permissions are read from the database on every request,
 // so a role change or ban takes effect immediately, without the person logging in again.
+// A banned connection is treated as banned even when nobody is logged in.
 async function getAuth(req) {
   if (ownerFromCookie(req)) return { owner: true, perms: new Set(PERM_KEYS) };
+  let auth = null;
   const id = await userIdFromCookie(req);
-  if (!id) return null;
-  const db = await getDb();
-  const u = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [id] })).rows[0];
-  return u ? authForUser(u) : null;
+  if (id) {
+    const db = await getDb();
+    const u = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [id] })).rows[0];
+    auth = u ? authForUser(u) : null;
+  }
+  if (!auth || !auth.banned) {
+    const ipb = await ipBanFor(req);
+    if (ipb) return { owner: false, banned: ipb, ipBanned: true, perms: new Set() };
+  }
+  if (auth && auth.user) await recordIp(Number(auth.user.id), req).catch(() => {});
+  return auth;
 }
 function sessionPayload(auth) {
   if (!auth) return { admin: false, owner: false, user: null, permissions: [] };
@@ -226,6 +318,33 @@ const rateLimited = (ip) => {
   return rec.length >= 8;
 };
 const recordFailure = (ip) => attempts.get(ip).push(Date.now());
+const reqRate = new Map();    // per connection: new requests (6/hour) and lookups/replies (60/10 min)
+function reqLimited(ip, kind) {
+  const win = kind === 'new' ? 60 * 60 * 1000 : 10 * 60 * 1000, max = kind === 'new' ? 6 : 60;
+  const key = kind + ':' + ip, now = Date.now();
+  const rec = (reqRate.get(key) || []).filter((t) => now - t < win);
+  if (rec.length >= max) { reqRate.set(key, rec); return true; }
+  rec.push(now); reqRate.set(key, rec);
+  if (reqRate.size > 5000) reqRate.clear();
+  return false;
+}
+const REQ_TYPES = ['takedown', 'update'];
+const REQ_MSG_MAX = 3000;
+const REQ_THREAD_MAX = 40;
+const newCode = () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return 'SM-' + Array.from(crypto.randomBytes(10), (b) => alphabet[b % alphabet.length]).join('');
+};
+const cleanText = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, max) : '');
+const rowToMsg = (m) => ({ id: Number(m.id), from: m.sender === 'dev' ? 'dev' : 'user', body: m.body, time: Number(m.created_at) });
+async function loadThread(db, row, forOwner) {
+  const msgs = (await db.execute({ sql: 'SELECT * FROM request_messages WHERE request_id = ? ORDER BY id ASC', args: [Number(row.id)] })).rows.map(rowToMsg);
+  return {
+    id: Number(row.id), ...(forOwner ? {} : { code: row.code }), postId: Number(row.post_id), postTitle: row.post_title,
+    type: row.type, status: row.status, name: row.name, ...(forOwner ? { contact: row.contact, userId: Number(row.user_id), code: row.code } : {}),
+    createdAt: Number(row.created_at), updatedAt: Number(row.updated_at), messages: msgs,
+  };
+}
 const signups = new Map();
 const signupLimited = (ip) => {
   const now = Date.now();
@@ -331,6 +450,8 @@ async function handleApi(req, res) {
     const password = typeof body.password === 'string' ? body.password : '';
     if (!USERNAME_RE.test(username)) return send(res, 400, { error: 'Username must be 3-20 characters: letters, numbers and underscores only.' });
     if (password.length < 8 || password.length > 128) return send(res, 400, { error: 'Password must be 8-128 characters.' });
+    const ipb = await ipBanFor(req);
+    if (ipb) return send(res, 403, { error: banMessage(ipb), banned: ipb });
     signups.get(ip).push(Date.now());
     const db = await getDb();
     const hash = await hashPw(password);
@@ -343,6 +464,7 @@ async function handleApi(req, res) {
     }
     const id = Number(ins.lastInsertRowid);
     const u = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [id] })).rows[0];
+    await recordIp(id, req).catch(() => {});
     return send(res, 201, sessionPayload(authForUser(u)), { 'Set-Cookie': sessionCookie(await makeUserToken(id)) });
   }
 
@@ -353,6 +475,8 @@ async function handleApi(req, res) {
     if (typeof body.username === 'string' && body.username.trim() !== '') {
       // account login
       const password = typeof body.password === 'string' ? body.password : '';
+      const ipb = await ipBanFor(req);
+      if (ipb) return send(res, 403, { error: banMessage(ipb), banned: ipb });
       const db = await getDb();
       const u = (await db.execute({ sql: 'SELECT * FROM users WHERE username_lower = ?', args: [body.username.trim().toLowerCase()] })).rows[0];
       let ok = false;
@@ -363,6 +487,7 @@ async function handleApi(req, res) {
       if (!ok) { recordFailure(ip); return send(res, 401, { error: 'Invalid username or password.' }); }
       const auth = authForUser(u);
       if (auth.banned) return send(res, 403, { error: banMessage(auth.banned), banned: auth.banned });
+      await recordIp(Number(u.id), req).catch(() => {});
       return send(res, 200, sessionPayload(auth), { 'Set-Cookie': sessionCookie(await makeUserToken(Number(u.id))) });
     }
 
@@ -419,7 +544,19 @@ async function handleApi(req, res) {
       const up = await db.execute({ sql: `UPDATE users SET ${sets.join(', ')} WHERE id = ?`, args: [...args, Number(um[1])] });
       if (!up.rowsAffected) return send(res, 404, { error: 'No such account.' });
       const row = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [Number(um[1])] })).rows[0];
-      return send(res, 200, { user: userForOwner(row) });
+      let ipsBanned = 0;
+      if (body.unban === true) {
+        await db.execute({ sql: 'DELETE FROM ip_bans WHERE user_id = ?', args: [Number(um[1])] });
+      } else if (body.ban !== undefined) {
+        await db.execute({ sql: 'DELETE FROM ip_bans WHERE user_id = ?', args: [Number(um[1])] });
+        const blockIps = !(body.ban && body.ban.ip === false);   // the owner can untick "also block their connection"
+        const seen = !blockIps ? [] : (await db.execute({ sql: 'SELECT ip_hash FROM user_ips WHERE user_id = ? AND seen_at > ?', args: [Number(um[1]), Date.now() - IP_WINDOW_MS] })).rows;
+        for (const r of seen) {
+          await db.execute({ sql: 'INSERT INTO ip_bans (ip_hash, user_id, until, reason) VALUES (?,?,?,?)', args: [r.ip_hash, Number(um[1]), Number(row.banned_until), String(row.ban_reason || '')] });
+        }
+        ipsBanned = seen.length;
+      }
+      return send(res, 200, { user: userForOwner(row), ipsBanned });
     }
   }
 
@@ -473,6 +610,9 @@ async function handleApi(req, res) {
   /* ----- custom pages (owner-made, permanent, served at /p/<slug>) ----- */
   let pm = pathname.match(/^\/api\/p\/([a-z0-9-]{1,60})$/);
   if (pm && method === 'GET') {
+    if (String(req.headers.host || '').toLowerCase().split(':')[0] === 'apkmodding.vercel.app') {
+      res.statusCode = 302; res.setHeader('Location', '/moved/?p=' + encodeURIComponent('/p/' + pm[1])); return res.end();
+    }
     const db = await getDb();
     const r = await db.execute({ sql: 'SELECT html FROM pages WHERE slug = ?', args: [pm[1]] });
     if (!r.rows.length) return sendHtml(res, 404, '<!DOCTYPE html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not found</title><body style="background:#000;color:#22ff66;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center"><div>Page not found.<br><br><a style="color:#22ff66" href="/">Home</a></div>');
@@ -523,6 +663,118 @@ async function handleApi(req, res) {
     if (method === 'DELETE' && id) {
       const del = await db.execute({ sql: 'DELETE FROM pages WHERE id = ?', args: [id] });
       return send(res, del.rowsAffected ? 200 : 404, { ok: !!del.rowsAffected });
+    }
+  }
+
+  /* ----- takedown / update requests (a small "mailbox" between visitors and the developer) ----- */
+  if (pathname === '/api/requests' && method === 'POST') {
+    if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+    const auth = await getAuth(req);
+    if (auth && auth.banned) return send(res, 403, { error: banMessage(auth.banned), banned: auth.banned });
+    if (reqLimited(ip, 'new')) return send(res, 429, { error: 'You have sent a lot of requests. Try again in a while.' });
+    let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+    if (typeof body.website === 'string' && body.website.trim() !== '') return send(res, 201, { code: newCode(), id: 0 });   // honeypot: bots fill this in
+    const type = REQ_TYPES.includes(body.type) ? body.type : '';
+    if (!type) return send(res, 400, { error: 'Choose takedown or update.' });
+    const message = cleanText(body.message, REQ_MSG_MAX);
+    if (message.length < 10) return send(res, 400, { error: 'Please write a little more (at least 10 characters).' });
+    const db = await getDb();
+    const post = (await db.execute({ sql: 'SELECT id, title FROM posts WHERE id = ?', args: [Number(body.postId)] })).rows[0];
+    if (!post) return send(res, 404, { error: 'That mod no longer exists.' });
+    let name = cleanText(body.name, 40) || 'Anonymous', userId = 0;
+    if (auth && auth.owner) name = 'Owner';
+    else if (auth && auth.user) { name = auth.user.username; userId = Number(auth.user.id); }
+    const contact = cleanText(body.contact, 120);
+    const now = Date.now();
+    for (let i = 0; i < 5; i++) {
+      const code = newCode();
+      try {
+        const ins = await db.execute({ sql: 'INSERT INTO requests (code, post_id, post_title, type, name, contact, user_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)', args: [code, Number(post.id), String(post.title), type, name, contact, userId, now, now] });
+        await db.execute({ sql: 'INSERT INTO request_messages (request_id, sender, body, created_at) VALUES (?,?,?,?)', args: [Number(ins.lastInsertRowid), 'user', message, now] });
+        return send(res, 201, { code, id: Number(ins.lastInsertRowid) });
+      } catch (e) { if (!/unique|constraint/i.test(String(e && e.message))) throw e; }
+    }
+    return send(res, 500, { error: 'Could not create the request. Try again.' });
+  }
+
+  if (pathname === '/api/requests/lookup' && method === 'POST') {      // requester checks their own tickets by code
+    if (reqLimited(ip, 'lookup')) return send(res, 429, { error: 'Too many checks. Wait a few minutes.' });
+    let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+    const codes = (Array.isArray(body.codes) ? body.codes : []).filter((c) => typeof c === 'string' && /^SM-[A-Z2-9]{10}$/.test(c.trim().toUpperCase())).map((c) => c.trim().toUpperCase()).slice(0, 20);
+    const db = await getDb();
+    const out = [];
+    for (const code of [...new Set(codes)]) {
+      const row = (await db.execute({ sql: 'SELECT * FROM requests WHERE code = ?', args: [code] })).rows[0];
+      if (row) out.push(await loadThread(db, row, false));
+    }
+    return send(res, 200, { threads: out });
+  }
+
+  if (pathname === '/api/requests/reply' && method === 'POST') {       // requester adds a follow-up
+    if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+    if (reqLimited(ip, 'lookup')) return send(res, 429, { error: 'Too many messages. Wait a few minutes.' });
+    let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+    const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+    const message = cleanText(body.body, REQ_MSG_MAX);
+    if (!/^SM-[A-Z2-9]{10}$/.test(code)) return send(res, 400, { error: 'Bad ticket code.' });
+    if (!message) return send(res, 400, { error: 'Write a message first.' });
+    const auth = await getAuth(req);
+    if (auth && auth.banned) return send(res, 403, { error: banMessage(auth.banned), banned: auth.banned });
+    const db = await getDb();
+    const row = (await db.execute({ sql: 'SELECT * FROM requests WHERE code = ?', args: [code] })).rows[0];
+    if (!row) return send(res, 404, { error: 'No request with that code.' });
+    if (row.status === 'closed') return send(res, 409, { error: 'This request is closed.' });
+    const n = Number((await db.execute({ sql: 'SELECT COUNT(*) AS n FROM request_messages WHERE request_id = ?', args: [Number(row.id)] })).rows[0].n);
+    if (n >= REQ_THREAD_MAX) return send(res, 409, { error: 'This conversation is full. Please open a new request.' });
+    const now = Date.now();
+    await db.execute({ sql: 'INSERT INTO request_messages (request_id, sender, body, created_at) VALUES (?,?,?,?)', args: [Number(row.id), 'user', message, now] });
+    await db.execute({ sql: 'UPDATE requests SET unread = 1, updated_at = ? WHERE id = ?', args: [now, Number(row.id)] });
+    return send(res, 200, await loadThread(db, row, false));
+  }
+
+  const ib = pathname.match(/^\/api\/inbox(?:\/(\d+)(\/reply)?)?$/);
+  if (ib) {                                                           // the developer's inbox
+    if (!requirePerm(res, await getAuth(req), 'inbox')) return;
+    if (method !== 'GET' && badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+    const db = await getDb();
+    const id = ib[1] ? Number(ib[1]) : null;
+    if (!id && method === 'GET') {
+      const rows = (await db.execute(`SELECT r.*, (SELECT body FROM request_messages m WHERE m.request_id = r.id ORDER BY m.id DESC LIMIT 1) AS snippet,
+        (SELECT sender FROM request_messages m WHERE m.request_id = r.id ORDER BY m.id DESC LIMIT 1) AS last_from
+        FROM requests r ORDER BY (r.status = 'open') DESC, r.updated_at DESC LIMIT 300`)).rows;
+      const items = rows.map((r) => ({
+        id: Number(r.id), type: r.type, status: r.status, postId: Number(r.post_id), postTitle: r.post_title, name: r.name,
+        unread: !!Number(r.unread), awaitingReply: r.status === 'open' && r.last_from === 'user',
+        snippet: String(r.snippet || '').slice(0, 140), updatedAt: Number(r.updated_at), createdAt: Number(r.created_at),
+      }));
+      return send(res, 200, { items, unread: items.filter((i) => i.unread).length });
+    }
+    if (!id) return send(res, 404, { error: 'Not found.' });
+    const row = (await db.execute({ sql: 'SELECT * FROM requests WHERE id = ?', args: [id] })).rows[0];
+    if (!row) return send(res, 404, { error: 'Not found.' });
+    if (!ib[2] && method === 'GET') {
+      await db.execute({ sql: 'UPDATE requests SET unread = 0 WHERE id = ?', args: [id] });
+      return send(res, 200, await loadThread(db, row, true));
+    }
+    if (ib[2] && method === 'POST') {
+      let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      const message = cleanText(body.body, REQ_MSG_MAX);
+      if (!message) return send(res, 400, { error: 'Write a reply first.' });
+      const now = Date.now();
+      await db.execute({ sql: 'INSERT INTO request_messages (request_id, sender, body, created_at) VALUES (?,?,?,?)', args: [id, 'dev', message, now] });
+      await db.execute({ sql: 'UPDATE requests SET unread = 0, updated_at = ? WHERE id = ?', args: [now, id] });
+      return send(res, 200, await loadThread(db, row, true));
+    }
+    if (!ib[2] && method === 'PATCH') {
+      let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      if (body.status !== 'open' && body.status !== 'closed') return send(res, 400, { error: 'Bad status.' });
+      await db.execute({ sql: 'UPDATE requests SET status = ?, updated_at = ? WHERE id = ?', args: [body.status, Date.now(), id] });
+      return send(res, 200, { ok: true, status: body.status });
+    }
+    if (!ib[2] && method === 'DELETE') {
+      await db.execute({ sql: 'DELETE FROM request_messages WHERE request_id = ?', args: [id] });
+      await db.execute({ sql: 'DELETE FROM requests WHERE id = ?', args: [id] });
+      return send(res, 200, { ok: true });
     }
   }
 
