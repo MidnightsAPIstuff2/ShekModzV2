@@ -21,6 +21,7 @@ const PERMISSIONS = [
   { key: 'announce', label: 'Send announcements' },
   { key: 'theme', label: 'Change site theme' },
   { key: 'inbox', label: 'Answer takedown & update requests' },
+  { key: 'devlog', label: 'Post devlogs' },
 ];
 const PERM_KEYS = PERMISSIONS.map((p) => p.key);
 const ROLES = {
@@ -114,6 +115,15 @@ function getDb() {
         mime TEXT NOT NULL,
         data TEXT NOT NULL,
         updated INTEGER NOT NULL
+      )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS devlogs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        author TEXT NOT NULL,
+        user_id INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
       )`);
       const n = Number((await client.execute('SELECT COUNT(*) AS n FROM posts')).rows[0].n);
       if (n === 0) {
@@ -694,6 +704,61 @@ async function handleApi(req, res) {
     if (method === 'DELETE' && id) {
       const del = await db.execute({ sql: 'DELETE FROM pages WHERE id = ?', args: [id] });
       return send(res, del.rowsAffected ? 200 : 404, { ok: !!del.rowsAffected });
+    }
+  }
+
+  /* ----- devlogs: everyone reads; the owner and accounts with the "devlog" permission write ----- */
+  const dm = pathname.match(/^\/api\/devlogs\/(\d+)$/);
+  if (pathname === '/api/devlogs' || dm) {
+    const db = await getDb();
+    const auth = await getAuth(req);
+    const canTouch = (row) => !!auth && (auth.owner || (!!auth.user && auth.perms.has('devlog') && Number(row.user_id) === Number(auth.user.id)));
+    const out = (r) => ({ id: Number(r.id), title: r.title, body: r.body, author: r.author, date: Number(r.created_at), edited: Number(r.updated_at) > Number(r.created_at), canEdit: canTouch(r) });
+    const clean = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').trim().slice(0, max) : '');
+
+    if (pathname === '/api/devlogs' && method === 'GET') {
+      const q = clean(url.searchParams.get('q') || '', 100);
+      const before = Number(url.searchParams.get('before')) || 0;
+      const where = [], args = [];
+      if (q) {
+        const like = '%' + q.replace(/[\\%_]/g, '\\$&') + '%';
+        where.push("(title LIKE ? ESCAPE '\\' OR body LIKE ? ESCAPE '\\' OR author LIKE ? ESCAPE '\\')");
+        args.push(like, like, like);
+      }
+      if (before > 0) { where.push('id < ?'); args.push(before); }
+      const r = await db.execute({ sql: 'SELECT * FROM devlogs' + (where.length ? ' WHERE ' + where.join(' AND ') : '') + ' ORDER BY id DESC LIMIT 31', args });
+      return send(res, 200, { logs: r.rows.slice(0, 30).map(out), more: r.rows.length > 30 });
+    }
+
+    if (pathname === '/api/devlogs' && method === 'POST') {
+      if (!requirePerm(res, auth, 'devlog')) return;
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      let body; try { body = await readJson(req, 40_000); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      const title = clean(body.title, 120), text = clean(body.body, 8000);
+      if (!title || !text) return send(res, 400, { error: 'A title and some text are required.' });
+      // accounts always post under their own name; only the owner picks the name
+      const author = auth.owner ? (clean(body.author, 40) || 'Owner') : auth.user.username;
+      const now = Date.now();
+      const ins = await db.execute({ sql: 'INSERT INTO devlogs (title, body, author, user_id, created_at, updated_at) VALUES (?,?,?,?,?,?)', args: [title, text, author, auth.owner ? 0 : Number(auth.user.id), now, now] });
+      const row = (await db.execute({ sql: 'SELECT * FROM devlogs WHERE id = ?', args: [Number(ins.lastInsertRowid)] })).rows[0];
+      return send(res, 201, out(row));
+    }
+
+    if (dm && (method === 'PUT' || method === 'DELETE')) {
+      if (!auth) return send(res, 401, { error: 'Log in first.' });
+      if (auth.banned) return send(res, 403, { error: banMessage(auth.banned), banned: auth.banned });
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      const row = (await db.execute({ sql: 'SELECT * FROM devlogs WHERE id = ?', args: [Number(dm[1])] })).rows[0];
+      if (!row) return send(res, 404, { error: 'Not found.' });
+      if (!canTouch(row)) return send(res, 403, { error: "You can only change your own devlogs." });
+      if (method === 'DELETE') { await db.execute({ sql: 'DELETE FROM devlogs WHERE id = ?', args: [Number(dm[1])] }); return send(res, 200, { ok: true }); }
+      let body; try { body = await readJson(req, 40_000); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      const title = clean(body.title, 120), text = clean(body.body, 8000);
+      if (!title || !text) return send(res, 400, { error: 'A title and some text are required.' });
+      const author = auth.owner ? (clean(body.author, 40) || row.author) : row.author;
+      await db.execute({ sql: 'UPDATE devlogs SET title=?, body=?, author=?, updated_at=? WHERE id=?', args: [title, text, author, Date.now(), Number(dm[1])] });
+      const upd = (await db.execute({ sql: 'SELECT * FROM devlogs WHERE id = ?', args: [Number(dm[1])] })).rows[0];
+      return send(res, 200, out(upd));
     }
   }
 
