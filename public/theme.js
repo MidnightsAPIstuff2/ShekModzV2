@@ -1,8 +1,13 @@
-/* Shek Modz seasonal themes. The admin picks one; the server stores it; everyone sees it. */
+/* standy.best themes (black & grey by default, plus the seasonal ones). The admin picks one; the server stores it; everyone sees it. */
 (function () {
   'use strict';
 
   var THEMES = {
+    default: {
+      label: 'Standy', icon: '⚫',
+      vars: { '--accent': '#e4e4e7', '--accent-rgb': '228 228 231', '--accent-mid': '#a1a1aa', '--accent-dark': '#52525b', '--soft-rgb': '212 212 216', '--bg': '#050506', '--bg2': '#0a0a0b' },
+      fx: null
+    },
     summer: {
       label: 'Summer', icon: '☀️',
       vars: { '--accent': '#22ff66', '--accent-rgb': '34 255 102', '--accent-mid': '#14a83c', '--accent-dark': '#0b5a20', '--soft-rgb': '187 247 208', '--bg': '#010502', '--bg2': '#020a04' },
@@ -37,7 +42,7 @@
     }
   };
 
-  var DEFAULT = 'summer';
+  var DEFAULT = 'default';
   var KEY = 'shek_theme';
   var root = document.documentElement;
   var current = null;
