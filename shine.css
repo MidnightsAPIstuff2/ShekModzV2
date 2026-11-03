@@ -1,0 +1,36 @@
+/* standy.best: everything glossy. A soft diagonal sheen, a bright top edge, a spotlight that follows the mouse (see fx.js),
+   and a sweep of light across buttons and panels on hover. Colours come from the theme variables. */
+.glass-panel, .glow-box-sm, .glow-heavy, .card, .btn, .home, .shine,
+.glass-panel:hover,
+.glow-box-sm:hover,
+.glow-heavy:hover,
+.card:hover,
+.btn:hover,
+.home:hover,
+.shine:hover {
+  background-image:
+    radial-gradient(360px circle at var(--gx, 28%) var(--gy, -30%), rgba(255,255,255,.14), rgba(255,255,255,0) 60%),
+    linear-gradient(105deg, rgba(255,255,255,0) 38%, rgba(255,255,255,.30) 50%, rgba(255,255,255,0) 62%),
+    linear-gradient(118deg, rgba(255,255,255,.15) 0%, rgba(255,255,255,.045) 24%, rgba(255,255,255,0) 42%, rgba(255,255,255,0) 74%, rgba(255,255,255,.07) 100%);
+  background-size: 100% 100%, 260% 100%, 100% 100%;
+  background-position: 0 0, 160% 0, 0 0;
+  background-repeat: no-repeat;
+}
+.glass-panel:hover, .glow-box-sm:hover, .glow-heavy:hover, .card:hover, .btn:hover, .home:hover, .shine:hover { background-position: 0 0, -60% 0, 0 0; }
+.glass-panel, .glow-box-sm, .glow-heavy, .card, .btn, .home, .shine { transition: background-position .9s ease, box-shadow .25s, border-color .25s, background-color .25s, color .25s; }
+
+/* bright top edge + dark bottom edge = a glass lip */
+.card, .btn, .home {
+  box-shadow: 0 0 22px rgba(var(--accent-rgb) / .22), inset 0 1px 0 rgba(255,255,255,.28), inset 0 -1px 0 rgba(0,0,0,.5);
+}
+.btn:hover, .home:hover { box-shadow: 0 0 24px rgba(var(--accent-rgb) / .5), inset 0 1px 0 rgba(255,255,255,.4), inset 0 -1px 0 rgba(0,0,0,.4); }
+
+/* metallic text with a moving glint */
+.glint {
+  background-image: linear-gradient(105deg, var(--accent) 0%, var(--accent-mid) 30%, #fff 46%, var(--accent) 54%, var(--accent-mid) 76%, var(--accent-dark) 100%);
+  background-size: 260% 100%;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  animation: glintMove 6s ease-in-out infinite;
+}
+@keyframes glintMove { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0% 0; } }
+@media (prefers-reduced-motion: reduce) { .glint { animation: none; } .glass-panel, .glow-box-sm, .glow-heavy, .card, .btn, .home, .shine { transition: none; } }
