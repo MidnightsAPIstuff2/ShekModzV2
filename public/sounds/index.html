@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sounds | standy.best</title>
+    <style>:root{--accent:#e4e4e7;--accent-rgb:228 228 231;--accent-mid:#a1a1aa;--accent-dark:#52525b;--soft-rgb:212 212 216;--bg:#050506;--bg2:#0a0a0b}</style>
+    <script src="/theme.js"></script>
+    <script src="/announce.js"></script>
+    <script src="/fx.js" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; }
+        .home { z-index: 40; position: fixed; top: 16px; left: 16px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px;
+            border: 1px solid rgba(var(--accent-rgb)/0.4); border-radius: 10px; background: #000; color: var(--accent); text-decoration: none;
+            font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; transition: all .25s; }
+        .home:hover { background: var(--accent); color: #000; }
+        .wrap { position: relative; z-index: 10; width: 100%; max-width: 760px; margin: 0 auto; padding: 84px 16px 60px; }
+        h1 { margin: 0 0 6px; text-align: center; font-size: clamp(26px, 6vw, 40px); text-transform: uppercase; letter-spacing: .12em; text-shadow: 0 0 12px rgba(var(--accent-rgb)/0.7), 0 0 28px rgba(var(--accent-rgb)/0.35); }
+        .sub { margin: 0 0 24px; text-align: center; font-size: 12px; opacity: .6; }
+        .bar { display: flex; gap: 10px; margin-bottom: 16px; }
+        .search, .field { padding: 11px 14px; border-radius: 12px; border: 1px solid rgba(var(--accent-rgb)/0.35); background: rgba(5,5,6,.85); color: #fff; font: 13px 'JetBrains Mono', monospace; }
+        .search { flex: 1; min-width: 0; }
+        .search:focus, .field:focus { outline: none; border-color: var(--accent); }
+        .field { width: 100%; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border-radius: 12px; cursor: pointer; border: 1px solid rgba(var(--accent-rgb)/0.5);
+            background: #000; color: var(--accent); font: 700 12px 'JetBrains Mono', monospace; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+        .btn:hover { background: var(--accent); color: #000; }
+        .btn.solid { background: var(--accent); color: #000; }
+        .btn.danger { border-color: rgba(248,113,113,.5); color: #f87171; }
+        .btn.danger:hover { background: #f87171; color: #000; }
+        .btn.small { padding: 8px 12px; font-size: 11px; border-radius: 10px; }
+        .btn:disabled { opacity: .45; cursor: default; }
+        .panel { margin-bottom: 16px; padding: 18px; border: 1px solid rgba(var(--accent-rgb)/0.35); border-radius: 16px; background: rgba(10,10,12,.9); }
+        .panel p { margin: 0 0 10px; font-size: 12px; opacity: .7; line-height: 1.6; }
+        .up-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+        .jobs { margin-top: 12px; font-size: 12px; }
+        .job { padding: 8px 0; border-top: 1px solid rgba(var(--accent-rgb)/0.14); }
+        .job .t { display: flex; justify-content: space-between; gap: 10px; overflow-wrap: anywhere; }
+        .job .ok { color: #86efac; } .job .bad { color: #f87171; }
+        .meter { height: 5px; margin-top: 6px; border-radius: 3px; background: rgba(var(--accent-rgb)/0.15); overflow: hidden; }
+        .meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+        .row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; padding: 14px 16px; border: 1px solid rgba(var(--accent-rgb)/0.28); border-radius: 14px; background: rgba(10,10,12,.88); }
+        .row.on { border-color: var(--accent); box-shadow: 0 0 22px rgba(var(--accent-rgb)/0.3); }
+        .play { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(var(--accent-rgb)/0.6); background: #000; color: var(--accent); cursor: pointer; font-size: 14px; }
+        .play:hover { background: var(--accent); color: #000; }
+        .info { flex: 1; min-width: 0; }
+        .name { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+        .meta { margin-top: 3px; font-size: 11px; opacity: .6; }
+        .seek { height: 6px; margin-top: 9px; border-radius: 3px; background: rgba(var(--accent-rgb)/0.15); cursor: pointer; overflow: hidden; display: none; }
+        .row.on .seek { display: block; }
+        .seek i { display: block; height: 100%; width: 0; background: var(--accent); }
+        .acts { flex: none; display: flex; gap: 8px; }
+        .empty { padding: 40px 10px; text-align: center; font-size: 13px; opacity: .55; }
+        .err { margin-top: 8px; color: #f87171; font-size: 12px; }
+        [hidden] { display: none !important; }
+        @media (max-width: 520px) { .row { flex-wrap: wrap; } .acts { width: 100%; justify-content: flex-end; } }
+    </style>
+    <link href="/shine.css" rel="stylesheet">
+</head>
+<body>
+    <a class="home" href="/"><i class="fa-solid fa-house"></i> Home</a>
+    <main class="wrap">
+        <h1>Sounds</h1>
+        <p class="sub">Play and download sound files</p>
+
+        <div class="bar">
+            <input id="q" class="search" type="search" placeholder="Search sounds..." maxlength="100" autocomplete="off">
+            <button id="upBtn" class="btn solid" type="button" hidden><i class="fa-solid fa-upload"></i> Upload</button>
+        </div>
+
+        <div id="panel" class="panel" hidden>
+            <p>Upload .mp3 or .wav files (up to 25 MB each). You can pick several at once.</p>
+            <input id="file" type="file" accept=".mp3,.wav,audio/mpeg,audio/wav,audio/x-wav" multiple hidden>
+            <input id="uName" class="field" maxlength="80" placeholder="Name (optional, used when you pick one file)">
+            <div class="up-row">
+                <button id="pickBtn" class="btn" type="button"><i class="fa-regular fa-file-audio"></i> Choose files</button>
+                <button id="goBtn" class="btn solid" type="button" disabled>Upload</button>
+                <span id="picked" style="font-size:12px;opacity:.7"></span>
+            </div>
+            <div id="jobs" class="jobs"></div>
+        </div>
+
+        <div id="list"></div>
+    </main>
+<script>
+(function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var sounds = [], canUpload = false, term = '';
+    var audio = new Audio(), playing = 0, rows = {};
+    audio.preload = 'none';
+
+    function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
+    function api(path, opts) {
+        opts = opts || {}; opts.credentials = 'same-origin'; opts.cache = 'no-store';
+        if (opts.json) { opts.body = JSON.stringify(opts.json); opts.headers = { 'Content-Type': 'application/json' }; }
+        return fetch(path, opts).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) { var e = new Error(d.error || 'Something went wrong.'); e.status = r.status; throw e; } return d; }); });
+    }
+    function mb(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+    function day(ms) { return new Date(ms).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }); }
+
+    /* ---------- list + player ---------- */
+    function stopPlay() { audio.pause(); playing = 0; syncRows(); }
+    function syncRows() {
+        Object.keys(rows).forEach(function (id) {
+            var r = rows[id], on = Number(id) === playing && !audio.paused;
+            r.row.classList.toggle('on', Number(id) === playing);
+            r.play.innerHTML = '<i class="fa-solid fa-' + (on ? 'pause' : 'play') + '"></i>';
+            if (Number(id) !== playing) r.bar.style.width = '0';
+        });
+    }
+    audio.addEventListener('timeupdate', function () { var r = rows[playing]; if (r && audio.duration) r.bar.style.width = (audio.currentTime / audio.duration * 100) + '%'; });
+    audio.addEventListener('ended', function () { playing = 0; syncRows(); });
+    audio.addEventListener('pause', syncRows); audio.addEventListener('play', syncRows);
+    audio.addEventListener('error', function () { if (playing) { alert("This sound couldn't be played."); playing = 0; syncRows(); } });
+
+    function toggle(s) {
+        if (playing === s.id) { if (audio.paused) audio.play(); else audio.pause(); return; }
+        playing = s.id; audio.src = '/api/sounds/' + s.id + '/file'; audio.play().catch(function () {}); syncRows();
+    }
+
+    function render() {
+        var box = $('list'); box.textContent = ''; rows = {};
+        var t = term.toLowerCase();
+        var shown = sounds.filter(function (s) { return !t || (s.name + ' ' + s.uploader + ' ' + s.ext).toLowerCase().indexOf(t) >= 0; });
+        if (!shown.length) box.appendChild(el('div', 'empty', term ? 'No sounds match "' + term + '".' : 'No sounds uploaded yet.'));
+        shown.forEach(function (s) {
+            var row = el('div', 'row');
+            var play = el('button', 'play'); play.type = 'button'; play.innerHTML = '<i class="fa-solid fa-play"></i>'; play.title = 'Play'; play.onclick = function () { toggle(s); };
+            var info = el('div', 'info'); info.appendChild(el('div', 'name', s.name));
+            info.appendChild(el('div', 'meta', s.ext.toUpperCase() + ' · ' + mb(s.size) + ' · by ' + s.uploader + ' · ' + day(s.date)));
+            var seek = el('div', 'seek'), bar = el('i'); seek.appendChild(bar); info.appendChild(seek);
+            seek.onclick = function (e) { if (playing === s.id && audio.duration) { var b = seek.getBoundingClientRect(); audio.currentTime = audio.duration * (e.clientX - b.left) / b.width; } };
+            var acts = el('div', 'acts');
+            var dl = el('button', 'btn small', 'Download'); dl.type = 'button'; dl.onclick = function () { download(s, dl); }; acts.appendChild(dl);
+            if (s.canDelete) { var d = el('button', 'btn small danger', 'Delete'); d.type = 'button'; d.onclick = function () { del(s); }; acts.appendChild(d); }
+            row.appendChild(play); row.appendChild(info); row.appendChild(acts); box.appendChild(row);
+            rows[s.id] = { row: row, play: play, bar: bar };
+        });
+        syncRows();
+    }
+
+    function load() {
+        return api('/api/sounds').then(function (d) {
+            sounds = d.sounds; canUpload = d.canUpload; $('upBtn').hidden = !canUpload; if (!canUpload) $('panel').hidden = true; render();
+        }).catch(function () { $('list').textContent = ''; $('list').appendChild(el('div', 'empty', "Couldn't load the sounds. Try refreshing.")); });
+    }
+    $('q').addEventListener('input', function () { term = $('q').value.trim(); render(); });
+
+    /* download in pieces (each request stays small), then save the assembled file */
+    function download(s, btn) {
+        var parts = [], got = 0, total = s.size, label = btn.textContent;
+        btn.disabled = true;
+        function next() {
+            return fetch('/api/sounds/' + s.id + '/file', { headers: { Range: 'bytes=' + got + '-' }, credentials: 'same-origin' }).then(function (r) {
+                if (!(r.status === 206 || r.status === 200)) throw new Error('Download failed.');
+                return r.blob().then(function (b) {
+                    parts.push(b); got += b.size; btn.textContent = Math.min(99, Math.round(got / total * 100)) + '%';
+                    if (r.status === 200 || got >= total) return;
+                    if (!b.size) throw new Error('Download failed.');
+                    return next();
+                });
+            });
+        }
+        next().then(function () {
+            var url = URL.createObjectURL(new Blob(parts, { type: s.ext === 'mp3' ? 'audio/mpeg' : 'audio/wav' }));
+            var a = document.createElement('a'); a.href = url; a.download = s.filename; document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+        }).catch(function (e) { alert(e.message); }).then(function () { btn.disabled = false; btn.textContent = label; });
+    }
+
+    function del(s) {
+        if (!confirm('Delete "' + s.name + '"? This cannot be undone.')) return;
+        if (playing === s.id) stopPlay();
+        api('/api/sounds/' + s.id, { method: 'DELETE' }).then(load).catch(function (e) { alert(e.message); });
+    }
+
+    /* ---------- upload (one 2 MB piece at a time) ---------- */
+    var queue = [];
+    $('upBtn').onclick = function () { $('panel').hidden = !$('panel').hidden; };
+    $('pickBtn').onclick = function () { $('file').click(); };
+    $('file').onchange = function () {
+        queue = Array.prototype.slice.call($('file').files);
+        $('picked').textContent = queue.length ? queue.length + ' file' + (queue.length === 1 ? '' : 's') + ' ready' : '';
+        $('goBtn').disabled = !queue.length;
+    };
+
+    function job(f) {
+        var j = el('div', 'job'), t = el('div', 't'), nm = el('span', '', f.name + ' (' + mb(f.size) + ')'), st = el('span', '', 'waiting'); t.appendChild(nm); t.appendChild(st); j.appendChild(t);
+        var m = el('div', 'meter'), i = el('i'); m.appendChild(i); j.appendChild(m); $('jobs').appendChild(j);
+        return { set: function (txt, cls, pct) { st.textContent = txt; st.className = cls || ''; if (pct !== undefined) i.style.width = pct + '%'; } };
+    }
+
+    function uploadOne(f, name) {
+        var ui = job(f), id = 0;
+        if (!/\.(mp3|wav)$/i.test(f.name)) { ui.set('only .mp3 and .wav', 'bad'); return Promise.resolve(); }
+        ui.set('starting...');
+        return api('/api/sounds', { method: 'POST', json: { filename: f.name, size: f.size, name: name } }).then(function (c) {
+            id = c.id;
+            var i = 0;
+            function step() {
+                if (i >= c.chunks) return Promise.resolve();
+                var blob = f.slice(i * c.chunk, Math.min(f.size, (i + 1) * c.chunk));
+                return fetch('/api/sounds/' + id + '/chunk/' + i, { method: 'PUT', body: blob, headers: { 'Content-Type': 'application/octet-stream' }, credentials: 'same-origin' })
+                    .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) throw new Error(d.error || 'Upload failed.'); }); })
+                    .then(function () { i++; ui.set(Math.round(i / c.chunks * 100) + '%', '', i / c.chunks * 100); return step(); });
+            }
+            return step().then(function () { return api('/api/sounds/' + id + '/finish', { method: 'POST' }); });
+        }).then(function () { ui.set('done', 'ok', 100); })
+          .catch(function (e) { ui.set(e.message, 'bad'); if (id) api('/api/sounds/' + id, { method: 'DELETE' }).catch(function () {}); });
+    }
+
+    $('goBtn').onclick = function () {
+        var files = queue.slice(), nm = $('uName').value.trim();
+        if (!files.length) return;
+        $('goBtn').disabled = true; $('pickBtn').disabled = true; $('jobs').textContent = '';
+        var chain = Promise.resolve();
+        files.forEach(function (f) { chain = chain.then(function () { return uploadOne(f, files.length === 1 ? nm : ''); }); });
+        chain.then(function () {
+            queue = []; $('file').value = ''; $('picked').textContent = ''; $('uName').value = ''; $('pickBtn').disabled = false; return load();
+        });
+    };
+
+    load();
+})();
+</script>
+</body>
+</html>
