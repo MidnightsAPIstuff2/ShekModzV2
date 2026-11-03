@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mod | Shek Modz</title>
+    <title>Mod | standy.best</title>
     <script src="/theme.js"></script>
     <script src="/announce.js"></script>
+    <script src="/fx.js" defer></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
         * { box-sizing: border-box; }
-        html, body { margin: 0; min-height: 100%; background: var(--bg, #000); color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        html, body { margin: 0; min-height: 100%; background: var(--bg, #050506); color: var(--accent); font-family: 'JetBrains Mono', monospace; }
         .home { z-index: 40; position: fixed; top: 16px; left: 16px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px;
             border: 1px solid rgba(var(--accent-rgb)/0.4); border-radius: 10px; background: #000; color: var(--accent); text-decoration: none;
             font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; box-shadow: 0 0 10px rgba(var(--accent-rgb)/0.25); transition: all .25s; }
         .home:hover { background: var(--accent); color: #000; box-shadow: 0 0 22px rgba(var(--accent-rgb)/0.7); }
-        .center { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 80px 16px 40px; }
+        .center { position: relative; z-index: 10; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 80px 16px 40px; }
         .card { width: 100%; max-width: 640px; padding: 32px 28px; border: 1px solid rgba(var(--accent-rgb)/0.4); border-radius: 18px;
             background: rgba(10,10,12,.92); box-shadow: 0 0 30px rgba(var(--accent-rgb)/0.3), inset 0 0 18px rgba(var(--accent-rgb)/0.1); }
         .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 18px; font-size: 11px; }
@@ -32,8 +33,10 @@
             border: 1px solid rgba(var(--accent-rgb)/0.5); background: #000; color: var(--accent); font: 700 12px 'JetBrains Mono', monospace; letter-spacing: .08em;
             text-transform: uppercase; text-decoration: none; transition: all .25s; }
         .btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 20px rgba(var(--accent-rgb)/0.6); }
+        .pic { display: block; width: calc(100% + 56px); margin: -32px -28px 22px; max-height: 340px; object-fit: cover; border-radius: 18px 18px 0 0; border-bottom: 1px solid rgba(var(--accent-rgb)/0.25); }
         .msg { text-align: center; font-size: 15px; text-shadow: 0 0 12px rgba(var(--accent-rgb)/0.8); }
     </style>
+    <link href="/shine.css" rel="stylesheet">
 </head>
 <body>
     <a class="home" href="/"><i class="fa-solid fa-house"></i> Home</a>
@@ -46,7 +49,7 @@
     var m = location.pathname.match(/^\/mod\/(\d+)\/?$/);
 
     function missing() {
-        document.title = 'Mod not found | Shek Modz';
+        document.title = 'Mod not found | standy.best';
         card.innerHTML = '<p class="msg">This mod doesn\'t exist or has been taken down.</p>';
     }
     if (!m) return missing();
@@ -56,11 +59,12 @@
         .then(function (p) {
             if (p === 'locked') return;
             if (!p) return missing();
-            document.title = p.title + ' | Shek Modz';
+            document.title = p.title + ' | standy.best';
             var b = p.status === 'Tested & Working' ? '<span class="badge ok"><i class="fa-solid fa-circle-check"></i> WORKING</span>'
                   : p.status === 'Not Tested' ? '<span class="badge"><i class="fa-solid fa-triangle-exclamation"></i> UNTESTED</span>'
                   : '<span class="badge bad"><i class="fa-solid fa-bug"></i> NOT WORKING</span>';
             card.innerHTML =
+                (p.image ? '<img class="pic" alt="" src="' + esc(p.image) + '">' : '') +
                 '<div class="row">' + b + '<span class="date">' + esc(p.date) + '</span></div>' +
                 '<h1>' + esc(p.title) + '</h1>' +
                 '<p class="desc">' + esc(p.desc) + '</p>' +
