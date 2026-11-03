@@ -121,6 +121,19 @@
     if (!pend) pend = requestAnimationFrame(glare);
   }, { passive: true });
 
+  /* shimmer sweep: plays when the pointer arrives, then that element rests for 5 seconds */
+  var COOLDOWN = 5000;
+  document.addEventListener('pointerover', function (e) {
+    if (e.pointerType === 'touch' || reduce) return;
+    var t = e.target && e.target.closest ? e.target.closest(GLARE) : null;
+    if (!t) return;
+    var now = Date.now();
+    if (now - (t.__sweptAt || 0) < COOLDOWN) return;
+    t.__sweptAt = now;
+    t.classList.add('sweeping');
+    setTimeout(function () { t.classList.remove('sweeping'); }, 950);
+  }, { passive: true });
+
   function boot() { readRgb(); network(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
