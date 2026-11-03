@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shek Modz</title>
+    <title>standy.best</title>
     <script src="/theme.js"></script>
+    <script src="/fx.js" defer></script>
     <script src="/announce.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="/shine.css" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
@@ -32,6 +34,8 @@
 
         body {
             background-color: var(--bg);
+            background-image: radial-gradient(1100px 520px at 50% -8%, rgba(var(--accent-rgb)/0.10), transparent 65%);
+            background-attachment: fixed;
             color: var(--accent);
             font-family: 'Inter', sans-serif;
             overflow-x: hidden;
@@ -39,7 +43,7 @@
 
         /* Heavy visual effects */
         .glow-heavy {
-            box-shadow: 0 0 25px rgba(var(--accent-rgb)/0.45), inset 0 0 15px rgba(var(--accent-rgb)/0.2);
+            box-shadow: 0 0 25px rgba(var(--accent-rgb)/0.35), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -1px 0 rgba(0,0,0,0.5), inset 0 0 18px rgba(var(--accent-rgb)/0.1);
         }
 
         .glow-text {
@@ -47,29 +51,33 @@
         }
 
         .glow-box-sm {
-            box-shadow: 0 0 10px rgba(var(--accent-rgb)/0.2);
+            box-shadow: 0 0 10px rgba(var(--accent-rgb)/0.18), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.45);
         }
 
         .glow-box-sm:hover {
-            box-shadow: 0 0 20px rgba(var(--accent-rgb)/0.6);
+            box-shadow: 0 0 20px rgba(var(--accent-rgb)/0.5), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.4);
             border-color: var(--accent);
         }
 
         .chrome-gradient {
-            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-mid) 50%, var(--accent-dark) 75%, var(--accent) 100%);
+            background-image: linear-gradient(105deg, var(--accent) 0%, var(--accent-mid) 30%, #fff 46%, var(--accent) 54%, var(--accent-mid) 76%, var(--accent-dark) 100%);
+            background-size: 260% 100%;
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
+            animation: glintMove 6s ease-in-out infinite;
         }
+        @keyframes glintMove { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0% 0; } }
 
         .chrome-bg {
             background: linear-gradient(135deg, var(--accent) 0%, var(--accent-mid) 50%, var(--accent-dark) 100%);
         }
 
         .glass-panel {
-            background: rgba(15, 15, 18, 0.75);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(var(--accent-rgb)/0.15);
+            background-color: rgba(15, 15, 18, 0.62);
+            backdrop-filter: blur(14px) saturate(1.2);
+            -webkit-backdrop-filter: blur(14px) saturate(1.2);
+            border: 1px solid rgba(var(--accent-rgb)/0.18);
         }
 
         .scanline {
@@ -138,17 +146,15 @@
     .admin-menu > button.hidden { display: none; }
 </style>
 </head>
-<body class="relative min-h-screen grid-bg">
-
-    <canvas id="bgCanvas" class="fixed top-0 left-0 w-full h-full pointer-events-none z-0 opacity-40"></canvas>
+<body class="relative min-h-screen">
 
     <div class="relative z-10 flex flex-col min-h-screen">
         
-        <header class="w-full border-b border-white/20 bg-black/80 backdrop-blur-md sticky top-0 z-40">
+        <header class="w-full border-b border-white/20 bg-black/60 backdrop-blur-md sticky top-0 z-40 shine">
             <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap gap-2 justify-between items-center">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-white text-black font-black flex items-center justify-center font-mono shadow-[0_0_15px_rgba(var(--accent-rgb)/0.8)]">SM</div>
-                    <span class="font-black tracking-widest text-xl chrome-gradient uppercase font-mono">Shek Modz</span>
+                    <div class="w-8 h-8 rounded-full bg-white text-black font-black flex items-center justify-center font-mono shadow-[0_0_15px_rgba(var(--accent-rgb)/0.6)] shine">S</div>
+                    <span class="font-black tracking-wider text-xl chrome-gradient font-mono">standy.best</span>
                 </div>
                 
                 <div class="flex items-center gap-3">
@@ -183,6 +189,7 @@
                             </button>
                             <div id="themePicker" class="hidden items-center gap-1 px-3 py-2 mt-1 border-t border-white/20" title="Site theme: everyone sees the one you pick">
                                 <span class="text-[10px] font-mono uppercase text-soft/60 mr-1">Theme</span>
+                                <button class="theme-btn" data-theme-btn="default" onclick="setSiteTheme('default')" title="Standy (black &amp; grey)">⚫</button>
                                 <button class="theme-btn" data-theme-btn="summer" onclick="setSiteTheme('summer')" title="Summer">☀️</button>
                                 <button class="theme-btn" data-theme-btn="fall" onclick="setSiteTheme('fall')" title="Fall / Halloween">🎃</button>
                                 <button class="theme-btn" data-theme-btn="winter" onclick="setSiteTheme('winter')" title="Winter">❄️</button>
@@ -209,7 +216,7 @@
 
         <div id="banNotice" class="hidden w-full px-4 py-3 text-center text-xs font-mono text-red-300 bg-red-950/70 border-b border-red-500/40" role="alert"></div>
 
-        <section class="relative w-full border-b border-white/15 py-16 md:py-24 bg-gradient-to-b from-black via-zinc-950 to-black overflow-hidden scanline">
+        <section class="relative w-full border-b border-white/15 py-16 md:py-24 bg-gradient-to-b from-black/50 via-transparent to-black/50 overflow-hidden">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--accent-rgb)/0.12)_0,transparent_70%)] pointer-events-none"></div>
             
             <div class="max-w-5xl mx-auto px-4 text-center relative z-10">
@@ -217,8 +224,8 @@
                     /// discord.gg/yfA43ADx ///
                 </div>
                 
-                <h1 class="text-5xl md:text-8xl font-black tracking-tighter uppercase mb-4 chrome-gradient animate-pulse-glow">
-                    Shek Modz
+                <h1 class="text-5xl md:text-8xl font-black tracking-tighter mb-4 chrome-gradient animate-pulse-glow">
+                    standy.best
                 </h1>
                 
                 <p class="max-w-2xl mx-auto text-soft/60 text-sm md:text-base font-mono mb-8 tracking-wide">
@@ -298,9 +305,9 @@
             </div>
         </main>
 
-        <footer class="w-full border-t border-white/15 py-8 bg-black mt-auto">
+        <footer class="w-full border-t border-white/15 py-8 bg-black/70 mt-auto">
             <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-mono text-soft/50">
-                <div>&copy; 2026 SHEK MODZ. ALL RIGHTS RESERVED.</div>
+                <div>&copy; 2026 STANDY.BEST. ALL RIGHTS RESERVED.</div>
                 <div class="flex gap-6">
                     <span class="hover:text-white cursor-pointer transition">PRIVACY</span>
                     <span class="hover:text-white cursor-pointer transition">TERMS</span>
@@ -321,7 +328,7 @@
                     <i class="fa-solid fa-lock text-white text-lg"></i>
                 </div>
                 <h3 class="text-xl font-black font-mono uppercase tracking-wider text-white">ACCOUNT</h3>
-                <p id="authSub" class="text-xs font-mono text-soft/60 mt-1">LOG IN TO YOUR SHEK MODZ ACCOUNT</p>
+                <p id="authSub" class="text-xs font-mono text-soft/60 mt-1">LOG IN TO YOUR STANDY.BEST ACCOUNT</p>
             </div>
 
             <div class="grid grid-cols-3 gap-2 mb-5">
@@ -640,7 +647,7 @@
 
             <div class="mb-6">
                 <h3 id="modalTitle" class="text-2xl font-black font-mono uppercase tracking-wider chrome-gradient">CREATE NEW MOD POST</h3>
-                <p class="text-xs font-mono text-soft/60 mt-1">PUBLISH MODIFICATIONS TO THE SHEK ARCHIVE</p>
+                <p class="text-xs font-mono text-soft/60 mt-1">PUBLISH MODIFICATIONS TO THE STANDY.BEST ARCHIVE</p>
             </div>
 
             <form onsubmit="handleSavePost(event)" class="space-y-4">
@@ -671,6 +678,23 @@
                     <label class="block text-xs font-mono text-soft/80 uppercase mb-1">DESCRIPTION *</label>
                     <textarea id="postDescInput" rows="4" required placeholder="Detailed notes, installation steps, feature set..."
                         class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">IMAGE <span class="text-soft/40 normal-case">(optional)</span></label>
+                    <div class="flex items-center gap-3">
+                        <div id="postImgWrap" class="hidden w-28 h-20 rounded-lg overflow-hidden border border-white/30 bg-black shrink-0">
+                            <img id="postImgPreview" alt="" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="cursor-pointer px-4 py-2 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition font-mono text-xs font-bold uppercase text-center glow-box-sm">
+                                <i class="fa-regular fa-image mr-1"></i> <span id="postImgLabel">Choose image</span>
+                                <input type="file" id="postImgInput" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="pickPostImage(this)">
+                            </label>
+                            <button type="button" id="postImgRemove" onclick="removePostImage()" class="hidden px-4 py-1.5 rounded-lg border border-red-500/40 text-red-400 hover:border-red-500 font-mono text-[11px] uppercase">Remove image</button>
+                        </div>
+                    </div>
+                    <p id="postImgNote" class="text-[11px] font-mono text-soft/50 mt-1.5">JPG, PNG or WebP. It is shrunk automatically.</p>
                 </div>
 
                 <div>
@@ -720,7 +744,6 @@
         }
 
         window.addEventListener('load', async () => {
-            initCanvas();
             await refreshSession();
             markTheme();
             await loadPosts();
@@ -955,7 +978,7 @@
         }
 
         function setAuthTab(tab) {
-            const subs = { login: 'LOG IN TO YOUR SHEK MODZ ACCOUNT', signup: 'CREATE A FREE ACCOUNT', owner: 'OWNER ACCESS' };
+            const subs = { login: 'LOG IN TO YOUR STANDY.BEST ACCOUNT', signup: 'CREATE A FREE ACCOUNT', owner: 'OWNER ACCESS' };
             ['login', 'signup', 'owner'].forEach((t) => {
                 $('auth' + t[0].toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== tab);
                 document.querySelector('[data-auth-tab="' + t + '"]').className = t === tab ? ACTIVE_TAB : INACTIVE_TAB;
@@ -1172,8 +1195,44 @@
             document.getElementById('postStatusInput').value = post ? post.status : 'Tested & Working';
             document.getElementById('postDescInput').value = post ? post.desc : '';
             document.getElementById('postFileInput').value = post ? post.fileLink : '';
+            setPostImage(post && post.image ? { mode: 'keep', src: post.image } : { mode: 'none' });
             modalTitle.innerText = post ? "EDIT MOD POST" : "CREATE NEW MOD POST";
             document.getElementById('postModal').classList.remove('hidden');
+        }
+
+        /* optional picture: shrunk in the browser to a small JPEG before it is sent */
+        let postImg = { mode: 'none' };      // none | keep (the saved one) | new (data = data URL) | removed
+        function setPostImage(st, note) {
+            postImg = st;
+            const has = st.mode === 'keep' || st.mode === 'new';
+            $('postImgWrap').classList.toggle('hidden', !has);
+            $('postImgRemove').classList.toggle('hidden', !has);
+            if (has) $('postImgPreview').src = st.mode === 'new' ? st.data : st.src;
+            $('postImgLabel').textContent = has ? 'Change image' : 'Choose image';
+            $('postImgInput').value = '';
+            $('postImgNote').textContent = note || 'JPG, PNG or WebP. It is shrunk automatically.';
+        }
+        function removePostImage() { setPostImage({ mode: 'removed' }); }
+        function pickPostImage(input) {
+            const f = input.files && input.files[0];
+            if (!f) return;
+            if (!/^image\/(png|jpeg|webp)$/.test(f.type)) { $('postImgNote').textContent = 'That file is not a JPG, PNG or WebP picture.'; input.value = ''; return; }
+            const url = URL.createObjectURL(f), img = new Image();
+            img.onload = () => {
+                const MAX = 1000, k = Math.min(1, MAX / Math.max(img.width, img.height));
+                const c = document.createElement('canvas');
+                c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+                const g = c.getContext('2d');
+                g.fillStyle = '#0b0b0c'; g.fillRect(0, 0, c.width, c.height);   // see-through PNGs sit on dark
+                g.drawImage(img, 0, 0, c.width, c.height);
+                URL.revokeObjectURL(url);
+                let q = 0.85, data = c.toDataURL('image/jpeg', q);
+                while (data.length > 560000 && q > 0.35) { q -= 0.1; data = c.toDataURL('image/jpeg', q); }
+                if (data.length > 560000) { setPostImage(postImg, 'That picture is too detailed to shrink enough. Try a smaller one.'); return; }
+                setPostImage({ mode: 'new', data });
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); input.value = ''; $('postImgNote').textContent = 'Could not read that picture.'; };
+            img.src = url;
         }
 
         function closePostModal() {
@@ -1189,6 +1248,7 @@
                 status: document.getElementById('postStatusInput').value,
                 description: document.getElementById('postDescInput').value,
                 file_link: document.getElementById('postFileInput').value,
+                ...(postImg.mode === 'new' ? { image: postImg.data } : postImg.mode === 'removed' && id ? { image: null } : {}),
             });
             try {
                 await api(id ? '/api/posts/' + id : '/api/posts', { method: id ? 'PUT' : 'POST', body });
@@ -1276,6 +1336,10 @@
                 <div class="glass-panel rounded-2xl border border-white/15 p-6 flex flex-col justify-between hover:border-white/50 transition-all duration-300 glow-box-sm group relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl pointer-events-none group-hover:bg-white/10 transition"></div>
                     <div>
+                        ${post.image ? `<a href="/mod/${post.id}" style="display:block;position:relative;margin:-1.5rem -1.5rem 1.25rem;height:11rem;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.1)">
+                            <img src="${esc(post.image)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">
+                            <span style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.2),rgba(255,255,255,0) 42%)"></span>
+                        </a>` : ''}
                         <div class="flex justify-between items-start gap-2 mb-4">
                             <div>${getStatusBadgeHtml(post.status)}</div>
                             <span class="text-[10px] font-mono text-soft/50">${esc(post.date)}</span>
@@ -1575,42 +1639,6 @@
             if (!confirm('Delete this whole conversation? This cannot be undone.')) return;
             try { await api('/api/inbox/' + inboxCur.id, { method: 'DELETE' }); inboxCur = null; showInboxThread(null); await pollInboxBadge(); renderInboxList(); }
             catch (err) { alert(err.message); }
-        }
-
-        function initCanvas() {
-            const canvas = document.getElementById('bgCanvas');
-            const ctx = canvas.getContext('2d');
-            function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-            resize();
-            window.addEventListener('resize', resize);
-
-            const particles = Array.from({ length: 40 }, () => ({
-                x: Math.random() * canvas.width, y: Math.random() * canvas.height,
-                vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
-                size: Math.random() * 2 + 1
-            }));
-
-            function draw() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                const rgb = window.ShekTheme ? ShekTheme.rgb() : '34,255,102';
-                ctx.fillStyle = `rgba(${rgb},0.6)`;
-                ctx.strokeStyle = `rgba(${rgb},0.08)`;
-                for (let i = 0; i < particles.length; i++) {
-                    const p = particles[i];
-                    p.x += p.vx; p.y += p.vy;
-                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
-                    for (let j = i + 1; j < particles.length; j++) {
-                        const p2 = particles[j];
-                        if (Math.hypot(p.x - p2.x, p.y - p2.y) < 120) {
-                            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
-                        }
-                    }
-                }
-                requestAnimationFrame(draw);
-            }
-            draw();
         }
     </script>
 </body>
