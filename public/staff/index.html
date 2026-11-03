@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff Team | Shek Modz</title>
-    <style>:root{--accent:#22ff66;--accent-rgb:34 255 102;--accent-mid:#14a83c;--accent-dark:#0b5a20;--soft-rgb:187 247 208;--bg:#010502;--bg2:#020a04}</style>
+    <title>Staff Team | standy.best</title>
+    <style>:root{--accent:#e4e4e7;--accent-rgb:228 228 231;--accent-mid:#a1a1aa;--accent-dark:#52525b;--soft-rgb:212 212 216;--bg:#050506;--bg2:#0a0a0b}</style>
     <script src="/theme.js"></script>
     <script src="/announce.js"></script>
+    <script src="/fx.js" defer></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
@@ -30,6 +31,15 @@
             font: 700 12px 'JetBrains Mono', monospace; letter-spacing: .1em; text-transform: uppercase; transition: all .2s; }
         .edit-btn:hover { background: var(--accent); color: #000; }
         .editor { width: 100%; max-width: 520px; margin-top: 18px; }
+        .role-box { padding: 14px; margin-bottom: 12px; border: 1px solid rgba(var(--accent-rgb)/0.35); border-radius: 12px; background: rgba(10,10,12,.92); }
+        .role-top { display: flex; gap: 8px; margin-bottom: 8px; }
+        .role-top input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 8px; border: 1px solid rgba(var(--accent-rgb)/0.5); background: #000; color: var(--accent); font: 700 14px 'JetBrains Mono', monospace; }
+        .role-top input:focus, .role-box textarea:focus { outline: none; border-color: var(--accent); }
+        .role-top .del { padding: 0 12px; border-radius: 8px; border: 1px solid rgba(248,113,113,.5); background: #000; color: #f87171; cursor: pointer; font: 700 12px 'JetBrains Mono', monospace; }
+        .role-top .del:hover { background: #f87171; color: #000; }
+        .role-box textarea { min-height: 90px; font-size: 13px; }
+        .add-role { width: 100%; margin-bottom: 14px; padding: 11px; border-radius: 10px; border: 1px dashed rgba(var(--accent-rgb)/0.6); background: transparent; color: var(--accent); cursor: pointer; font: 700 12px 'JetBrains Mono', monospace; letter-spacing: .1em; text-transform: uppercase; }
+        .add-role:hover { background: rgba(var(--accent-rgb)/0.12); }
         textarea { width: 100%; min-height: 260px; padding: 14px; border-radius: 12px; border: 1px solid rgba(var(--accent-rgb)/0.5); background: #000; color: #fff; font: 14px/1.6 'JetBrains Mono', monospace; resize: vertical; }
         textarea:focus { outline: none; border-color: var(--accent); }
         .hint { margin: 8px 0 12px; font-size: 11px; opacity: .65; line-height: 1.6; }
@@ -39,6 +49,7 @@
         .err { margin-top: 10px; color: #f87171; font-size: 12px; }
         [hidden] { display: none !important; }
     </style>
+    <link href="/shine.css" rel="stylesheet">
 </head>
 <body>
     <a class="home" href="/"><i class="fa-solid fa-house"></i> Home</a>
@@ -47,8 +58,9 @@
         <div class="card" id="card"><div class="empty">Loading...</div></div>
         <button class="edit-btn" id="editBtn" hidden>Edit team</button>
         <div class="editor" id="editor" hidden>
-            <textarea id="staffText" spellcheck="false" maxlength="5000"></textarea>
-            <p class="hint">First line = the role. The lines under it = names, one per line. Leave a blank line between roles.</p>
+            <div id="roles"></div>
+            <button type="button" class="add-role" id="addRole">+ Add role</button>
+            <p class="hint">Give each role a name (Developer, Moderator, Tester...) and put one person per line underneath it.</p>
             <div class="row"><button type="button" id="cancelBtn">Cancel</button><button type="button" class="save" id="saveBtn">Save</button></div>
             <div class="err" id="err" hidden></div>
         </div>
@@ -69,6 +81,27 @@
             card.appendChild(box);
         });
     }
+    var rolesEl = document.getElementById('roles');
+    function addRoleBox(role, members) {
+        var box = el('div', undefined, 'role-box'), top = el('div', undefined, 'role-top');
+        var inp = el('input'); inp.type = 'text'; inp.maxLength = 40; inp.placeholder = 'Role name (e.g. Moderator)'; inp.value = role || '';
+        var del = el('button', 'Remove', 'del'); del.type = 'button'; del.onclick = function () { box.remove(); };
+        var t = el('textarea'); t.placeholder = 'One name per line'; t.spellcheck = false; t.value = (members || []).join('\n');
+        top.appendChild(inp); top.appendChild(del); box.appendChild(top); box.appendChild(t); rolesEl.appendChild(box);
+        return inp;
+    }
+    function fillEditor() { rolesEl.textContent = ''; groups.forEach(function (g) { addRoleBox(g.role, g.members); }); }
+    document.getElementById('addRole').onclick = function () { addRoleBox('', []).focus(); };
+    function editorText() {
+        var out = [];
+        Array.prototype.forEach.call(rolesEl.children, function (box) {
+            var role = box.querySelector('input').value.trim();
+            if (!role) return;
+            var names = box.querySelector('textarea').value.split('\n').map(function (n) { return n.trim(); }).filter(Boolean);
+            out.push([role].concat(names).join('\n'));
+        });
+        return out.join('\n\n');
+    }
     function toText() { return groups.map(function (g) { return [g.role].concat(g.members).join('\n'); }).join('\n\n'); }
     function load() {
         return fetch('/api/staff', { cache: 'no-store' }).then(function (r) { return r.json(); })
@@ -78,14 +111,14 @@
     load();
 
     // the owner gets an Edit button
-    var editBtn = document.getElementById('editBtn'), editor = document.getElementById('editor'), ta = document.getElementById('staffText'), err = document.getElementById('err');
+    var editBtn = document.getElementById('editBtn'), editor = document.getElementById('editor'), err = document.getElementById('err');
     fetch('/api/session', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); })
         .then(function (s) { if (s && s.owner) editBtn.hidden = false; }).catch(function () {});
-    editBtn.onclick = function () { ta.value = toText(); err.hidden = true; editor.hidden = false; editBtn.hidden = true; ta.focus(); };
+    editBtn.onclick = function () { fillEditor(); err.hidden = true; editor.hidden = false; editBtn.hidden = true; };
     document.getElementById('cancelBtn').onclick = function () { editor.hidden = true; editBtn.hidden = false; };
     document.getElementById('saveBtn').onclick = function () {
         err.hidden = true;
-        fetch('/api/staff', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: ta.value }) })
+        fetch('/api/staff', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: editorText() }) })
             .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Could not save.'); return d; }); })
             .then(function (d) { groups = d.groups; render(); editor.hidden = true; editBtn.hidden = false; })
             .catch(function (e) { err.textContent = e.message; err.hidden = false; });
