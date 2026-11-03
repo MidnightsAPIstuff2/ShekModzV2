@@ -30,8 +30,8 @@
   /* ---------- styles (colours come from the active theme, with green fallbacks) ---------- */
   function injectStyle() {
     if (document.getElementById('shekAnnStyle')) return;
-    var A = 'var(--accent-rgb,34 255 102)';
-    var S = 'var(--soft-rgb,187 247 208)';
+    var A = 'var(--accent-rgb,228 228 231)';
+    var S = 'var(--soft-rgb,212 212 216)';
     var css =
       /* bar */
       '.shek-ann-bar{position:fixed;top:0;left:0;right:0;z-index:45;display:flex;align-items:center;justify-content:center;gap:10px;' +
