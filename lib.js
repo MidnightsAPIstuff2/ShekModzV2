@@ -7,7 +7,7 @@ const scrypt = promisify(crypto.scrypt);
 
 const SESSION_TTL_S = 60 * 60 * 24 * 7; // 7 days
 const STATUSES = ['Tested & Working', 'Not Tested', 'Not Working'];
-const THEMES = ['summer', 'fall', 'winter', 'spring'];
+const THEMES = ['default', 'summer', 'fall', 'winter', 'spring'];
 const ANNOUNCE_TYPES = ['popup', 'bar'];
 const ANNOUNCE_MAX = 500;
 
@@ -108,6 +108,12 @@ function getDb() {
         description TEXT NOT NULL,
         file_link TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (date('now'))
+      )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS post_images (
+        post_id INTEGER PRIMARY KEY,
+        mime TEXT NOT NULL,
+        data TEXT NOT NULL,
+        updated INTEGER NOT NULL
       )`);
       const n = Number((await client.execute('SELECT COUNT(*) AS n FROM posts')).rows[0].n);
       if (n === 0) {
@@ -435,7 +441,25 @@ function validatePost(b) {
   if (/^[a-z][a-z0-9+.-]*:/i.test(post.file_link) && !/^https?:\/\//i.test(post.file_link)) return { error: 'File link must be an http(s) URL or a filename.' };
   return { post };
 }
-const rowToPost = (r) => ({ id: Number(r.id), title: r.title, author: r.author, status: r.status, desc: r.description, fileLink: r.file_link, date: r.created_at });
+const rowToPost = (r) => ({ id: Number(r.id), title: r.title, author: r.author, status: r.status, desc: r.description, fileLink: r.file_link, date: r.created_at,
+  image: r.img_v ? '/api/posts/' + Number(r.id) + '/image?v=' + Number(r.img_v) : null });
+const POST_SELECT = 'SELECT p.*, (SELECT updated FROM post_images WHERE post_id = p.id) AS img_v FROM posts p';
+
+/* optional mod picture: the page sends a small resized data URL; only real jpeg/png/webp bytes are accepted */
+const MAX_IMAGE_B64 = 600_000;
+function parseImage(v) {
+  const m = typeof v === 'string' && v.length <= MAX_IMAGE_B64 + 64 ? v.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/) : null;
+  if (!m || m[2].length > MAX_IMAGE_B64) return null;
+  const buf = Buffer.from(m[2], 'base64');
+  const ok = (m[1] === 'image/jpeg' && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
+    || (m[1] === 'image/png' && buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])))
+    || (m[1] === 'image/webp' && buf.slice(0, 4).toString('latin1') === 'RIFF' && buf.slice(8, 12).toString('latin1') === 'WEBP');
+  return ok ? { mime: m[1], data: m[2] } : null;
+}
+async function saveImage(db, postId, img) {   // img: parsed image, or null to remove
+  if (!img) return db.execute({ sql: 'DELETE FROM post_images WHERE post_id = ?', args: [postId] });
+  return db.execute({ sql: 'INSERT OR REPLACE INTO post_images (post_id, mime, data, updated) VALUES (?,?,?,?)', args: [postId, img.mime, img.data, Date.now()] });
+}
 
 /* ---------- API handler ---------- */
 async function handleApi(req, res) {
@@ -574,7 +598,7 @@ async function handleApi(req, res) {
   if (pathname === '/api/theme' && method === 'GET') {
     const db = await getDb();
     const r = await db.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['theme'] });
-    const t = r.rows[0] && THEMES.includes(r.rows[0].value) ? r.rows[0].value : 'summer';
+    const t = r.rows[0] && THEMES.includes(r.rows[0].value) ? r.rows[0].value : 'default';
     return send(res, 200, { theme: t, themes: THEMES });
   }
 
@@ -813,15 +837,29 @@ async function handleApi(req, res) {
   if (pathname === '/api/posts' && method === 'GET') {
     if (await lockedOut()) return;
     const db = await getDb();
-    const r = await db.execute('SELECT * FROM posts ORDER BY id DESC');
+    const r = await db.execute(POST_SELECT + ' ORDER BY p.id DESC');
     return send(res, 200, r.rows.map(rowToPost));
+  }
+
+  const im = pathname.match(/^\/api\/posts\/(\d+)\/image$/);
+  if (im && method === 'GET') {
+    if (await lockedOut()) return;
+    const db = await getDb();
+    const r = await db.execute({ sql: 'SELECT mime, data FROM post_images WHERE post_id = ?', args: [Number(im[1])] });
+    if (!r.rows.length) return send(res, 404, { error: 'No image.' });
+    res.statusCode = 200;
+    res.setHeader('Content-Type', String(r.rows[0].mime));
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');   // the ?v= in the link changes when the picture does
+    return res.end(Buffer.from(String(r.rows[0].data), 'base64'));
   }
 
   const m = pathname.match(/^\/api\/posts\/(\d+)$/);
   if (m && method === 'GET') {
     if (await lockedOut()) return;
     const db = await getDb();
-    const r = await db.execute({ sql: 'SELECT * FROM posts WHERE id = ?', args: [Number(m[1])] });
+    const r = await db.execute({ sql: POST_SELECT + ' WHERE p.id = ?', args: [Number(m[1])] });
     return r.rows.length ? send(res, 200, rowToPost(r.rows[0])) : send(res, 404, { error: 'Not found.' });
   }
   if ((pathname === '/api/posts' && method === 'POST') || (m && (method === 'PUT' || method === 'DELETE'))) {
@@ -831,22 +869,30 @@ async function handleApi(req, res) {
     const db = await getDb();
 
     if (!m) {
-      let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      let body; try { body = await readJson(req, 800_000); } catch { return send(res, 400, { error: 'Bad request (is the picture too big?).' }); }
       const { post, error } = validatePost(body);
       if (error) return send(res, 400, { error });
+      const img = body.image ? parseImage(body.image) : null;
+      if (body.image && !img) return send(res, 400, { error: 'That picture could not be used. Use a JPG, PNG or WebP.' });
       const ins = await db.execute({ sql: 'INSERT INTO posts (title, author, status, description, file_link) VALUES (?,?,?,?,?)', args: [post.title, post.author, post.status, post.description, post.file_link] });
-      const row = (await db.execute({ sql: 'SELECT * FROM posts WHERE id = ?', args: [Number(ins.lastInsertRowid)] })).rows[0];
+      if (img) await saveImage(db, Number(ins.lastInsertRowid), img);
+      const row = (await db.execute({ sql: POST_SELECT + ' WHERE p.id = ?', args: [Number(ins.lastInsertRowid)] })).rows[0];
       return send(res, 201, rowToPost(row));
     }
     if (method === 'PUT') {
-      let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      let body; try { body = await readJson(req, 800_000); } catch { return send(res, 400, { error: 'Bad request (is the picture too big?).' }); }
       const { post, error } = validatePost(body);
       if (error) return send(res, 400, { error });
+      const hasImg = Object.prototype.hasOwnProperty.call(body, 'image');   // omitted = keep the current picture, null = remove it
+      const img = hasImg && body.image ? parseImage(body.image) : null;
+      if (hasImg && body.image && !img) return send(res, 400, { error: 'That picture could not be used. Use a JPG, PNG or WebP.' });
       const up = await db.execute({ sql: 'UPDATE posts SET title=?, author=?, status=?, description=?, file_link=? WHERE id=?', args: [post.title, post.author, post.status, post.description, post.file_link, Number(m[1])] });
       if (!up.rowsAffected) return send(res, 404, { error: 'Not found.' });
-      const row = (await db.execute({ sql: 'SELECT * FROM posts WHERE id = ?', args: [Number(m[1])] })).rows[0];
+      if (hasImg) await saveImage(db, Number(m[1]), img);
+      const row = (await db.execute({ sql: POST_SELECT + ' WHERE p.id = ?', args: [Number(m[1])] })).rows[0];
       return send(res, 200, rowToPost(row));
     }
+    await db.execute({ sql: 'DELETE FROM post_images WHERE post_id = ?', args: [Number(m[1])] });
     const del = await db.execute({ sql: 'DELETE FROM posts WHERE id = ?', args: [Number(m[1])] });
     return send(res, del.rowsAffected ? 200 : 404, { ok: !!del.rowsAffected });
   }
