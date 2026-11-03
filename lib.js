@@ -10,6 +10,9 @@ const STATUSES = ['Tested & Working', 'Not Tested', 'Not Working'];
 const THEMES = ['default', 'summer', 'fall', 'winter', 'spring'];
 const ANNOUNCE_TYPES = ['popup', 'bar'];
 const ANNOUNCE_MAX = 500;
+const SOUND_CHUNK = 2 * 1024 * 1024;          // files are stored and sent in 2 MB pieces so no request or response is ever big
+const SOUND_MAX = 25 * 1024 * 1024;           // per file
+const SOUND_TOTAL_MAX = 1024 * 1024 * 1024;   // whole library
 
 /* ---------- Roles & permissions ----------
    The owner (whoever knows ADMIN_PASSWORD) is not an account: they can do everything,
@@ -22,6 +25,7 @@ const PERMISSIONS = [
   { key: 'theme', label: 'Change site theme' },
   { key: 'inbox', label: 'Answer takedown & update requests' },
   { key: 'devlog', label: 'Post devlogs' },
+  { key: 'sounds', label: 'Upload sounds' },
 ];
 const PERM_KEYS = PERMISSIONS.map((p) => p.key);
 const ROLES = {
@@ -124,6 +128,25 @@ function getDb() {
         user_id INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
+      )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS sounds (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        ext TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        chunk INTEGER NOT NULL,
+        chunks INTEGER NOT NULL,
+        uploader TEXT NOT NULL,
+        user_id INTEGER NOT NULL DEFAULT 0,
+        complete INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+      )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS sound_chunks (
+        sound_id INTEGER NOT NULL,
+        idx INTEGER NOT NULL,
+        data BLOB NOT NULL,
+        PRIMARY KEY (sound_id, idx)
       )`);
       const n = Number((await client.execute('SELECT COUNT(*) AS n FROM posts')).rows[0].n);
       if (n === 0) {
@@ -420,6 +443,22 @@ async function readJson(req, max = 100_000) {
   for await (const c of req) { size += c.length; if (size > max) throw new Error('too large'); chunks.push(c); }
   return JSON.parse(Buffer.concat(chunks).toString() || '{}');
 }
+async function readRaw(req, max) {            // raw bytes of a request body (one upload piece)
+  if (req.body !== undefined && req.body !== null) {
+    const b = Buffer.isBuffer(req.body) ? req.body : typeof req.body === 'string' ? Buffer.from(req.body, 'latin1') : null;
+    if (!b || b.length > max) throw new Error('bad body');
+    return b;
+  }
+  const parts = []; let size = 0;
+  for await (const c of req) { size += c.length; if (size > max) throw new Error('too large'); parts.push(c); }
+  return Buffer.concat(parts);
+}
+function soundKind(b) {                         // what the bytes really are, whatever the file is called
+  if (b.length >= 12 && b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WAVE') return 'wav';
+  if (b.length >= 3 && b.toString('latin1', 0, 3) === 'ID3') return 'mp3';
+  if (b.length >= 2 && b[0] === 0xff && (b[1] & 0xe0) === 0xe0) return 'mp3';
+  return '';
+}
 function badOrigin(req) {
   const origin = req.headers.origin;
   if (!origin) return false;
@@ -704,6 +743,118 @@ async function handleApi(req, res) {
     if (method === 'DELETE' && id) {
       const del = await db.execute({ sql: 'DELETE FROM pages WHERE id = ?', args: [id] });
       return send(res, del.rowsAffected ? 200 : 404, { ok: !!del.rowsAffected });
+    }
+  }
+
+  /* ----- sounds: everyone downloads; the owner and accounts with the "sounds" permission upload ----- */
+  const sm = pathname.match(/^\/api\/sounds(?:\/(\d+)(?:\/(file|finish|chunk\/(\d+)))?)?$/);
+  if (sm) {
+    const db = await getDb();
+    const sid = sm[1] ? Number(sm[1]) : 0, sub = sm[2] || '', cidx = sm[3] !== undefined ? Number(sm[3]) : -1;
+    const clean = (v, max) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+    const getRow = async () => (await db.execute({ sql: 'SELECT * FROM sounds WHERE id = ?', args: [sid] })).rows[0];
+    const mineOf = (auth, row) => !!auth && (auth.owner || (!!auth.user && Number(row.user_id) === Number(auth.user.id)));
+    const dropSound = async (id) => { await db.execute({ sql: 'DELETE FROM sound_chunks WHERE sound_id = ?', args: [id] }); await db.execute({ sql: 'DELETE FROM sounds WHERE id = ?', args: [id] }); };
+
+    if (!sid && method === 'GET') {
+      const auth = await getAuth(req);
+      const r = await db.execute('SELECT id, name, filename, ext, size, uploader, user_id, created_at FROM sounds WHERE complete = 1 ORDER BY id DESC LIMIT 500');
+      const can = !!auth && auth.perms.has('sounds');
+      return send(res, 200, { canUpload: can, sounds: r.rows.map((x) => ({
+        id: Number(x.id), name: x.name, filename: x.filename, ext: x.ext, size: Number(x.size), uploader: x.uploader, date: Number(x.created_at), canDelete: can && mineOf(auth, x),
+      })) });
+    }
+
+    if (!sid && method === 'POST') {            // step 1: announce an upload
+      const auth = await getAuth(req);
+      if (!requirePerm(res, auth, 'sounds')) return;
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      let body; try { body = await readJson(req, 5_000); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      const fn = clean(body.filename, 200), ext = (fn.match(/\.(mp3|wav)$/i) || [])[1];
+      if (!ext) return send(res, 400, { error: 'Only .mp3 and .wav files can be uploaded.' });
+      const size = Number(body.size);
+      if (!Number.isInteger(size) || size < 1) return send(res, 400, { error: 'That file is empty.' });
+      if (size > SOUND_MAX) return send(res, 400, { error: 'That file is too big (max ' + SOUND_MAX / 1048576 + ' MB).' });
+      await db.execute({ sql: 'DELETE FROM sound_chunks WHERE sound_id IN (SELECT id FROM sounds WHERE complete = 0 AND created_at < ?)', args: [Date.now() - 3600_000] });
+      await db.execute({ sql: 'DELETE FROM sounds WHERE complete = 0 AND created_at < ?', args: [Date.now() - 3600_000] });   // abandoned uploads
+      const used = Number((await db.execute('SELECT COALESCE(SUM(size), 0) AS n FROM sounds')).rows[0].n);
+      if (used + size > SOUND_TOTAL_MAX) return send(res, 400, { error: 'The sound library is full.' });
+      const name = clean(body.name, 80) || fn.replace(/\.[^.]+$/, '').slice(0, 80);
+      const safe = fn.replace(/[^A-Za-z0-9._ -]/g, '_').slice(0, 100);
+      const chunks = Math.ceil(size / SOUND_CHUNK);
+      const ins = await db.execute({ sql: 'INSERT INTO sounds (name, filename, ext, size, chunk, chunks, uploader, user_id, complete, created_at) VALUES (?,?,?,?,?,?,?,?,0,?)',
+        args: [name, safe, ext.toLowerCase(), size, SOUND_CHUNK, chunks, auth.owner ? 'Owner' : auth.user.username, auth.owner ? 0 : Number(auth.user.id), Date.now()] });
+      return send(res, 201, { id: Number(ins.lastInsertRowid), chunk: SOUND_CHUNK, chunks });
+    }
+
+    if (sid && sub.startsWith('chunk') && method === 'PUT') {      // step 2: one piece at a time
+      const auth = await getAuth(req);
+      if (!requirePerm(res, auth, 'sounds')) return;
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      const row = await getRow();
+      if (!row || Number(row.complete) || !mineOf(auth, row)) return send(res, 404, { error: 'Upload not found.' });
+      if (cidx < 0 || cidx >= Number(row.chunks)) return send(res, 400, { error: 'Bad piece number.' });
+      const want = cidx === Number(row.chunks) - 1 ? Number(row.size) - cidx * Number(row.chunk) : Number(row.chunk);
+      let buf; try { buf = await readRaw(req, want + 1); } catch { return send(res, 400, { error: 'Bad piece.' }); }
+      if (buf.length !== want) return send(res, 400, { error: 'That piece is the wrong size.' });
+      if (cidx === 0 && soundKind(buf) !== row.ext) { await dropSound(sid); return send(res, 400, { error: "That doesn't look like a real ." + row.ext + ' file.' }); }
+      await db.execute({ sql: 'INSERT OR REPLACE INTO sound_chunks (sound_id, idx, data) VALUES (?,?,?)', args: [sid, cidx, buf] });
+      return send(res, 200, { ok: true });
+    }
+
+    if (sid && sub === 'finish' && method === 'POST') {            // step 3: seal it
+      const auth = await getAuth(req);
+      if (!requirePerm(res, auth, 'sounds')) return;
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      const row = await getRow();
+      if (!row || Number(row.complete) || !mineOf(auth, row)) return send(res, 404, { error: 'Upload not found.' });
+      const have = Number((await db.execute({ sql: 'SELECT COUNT(*) AS n FROM sound_chunks WHERE sound_id = ?', args: [sid] })).rows[0].n);
+      if (have !== Number(row.chunks)) return send(res, 400, { error: 'The upload is incomplete. Try again.' });
+      await db.execute({ sql: 'UPDATE sounds SET complete = 1 WHERE id = ?', args: [sid] });
+      return send(res, 200, { ok: true, id: sid });
+    }
+
+    if (sid && !sub && method === 'DELETE') {
+      const auth = await getAuth(req);
+      if (!requirePerm(res, auth, 'sounds')) return;
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      const row = await getRow();
+      if (!row) return send(res, 404, { error: 'Not found.' });
+      if (!mineOf(auth, row)) return send(res, 403, { error: 'You can only delete your own sounds.' });
+      await dropSound(sid);
+      return send(res, 200, { ok: true });
+    }
+
+    if (sid && sub === 'file' && (method === 'GET' || method === 'HEAD')) {
+      const row = await getRow();
+      if (!row || !Number(row.complete)) return send(res, 404, { error: 'Not found.' });
+      const size = Number(row.size), CH = Number(row.chunk);
+      let start = 0, end = size - 1, partial = false;
+      const rg = String(req.headers.range || '').match(/^bytes=(\d*)-(\d*)$/);
+      if (rg && (rg[1] !== '' || rg[2] !== '')) {
+        if (rg[1] === '') start = Math.max(0, size - Number(rg[2]));
+        else { start = Number(rg[1]); if (rg[2] !== '') end = Math.min(end, Number(rg[2])); }
+        if (start >= size || start > end) { res.statusCode = 416; res.setHeader('Content-Range', 'bytes */' + size); return res.end(); }
+        partial = true;
+        end = Math.min(end, (Math.floor(start / CH) + 1) * CH - 1);   // at most one stored piece per response
+      }
+      res.statusCode = partial ? 206 : 200;
+      res.setHeader('Content-Type', row.ext === 'mp3' ? 'audio/mpeg' : 'audio/wav');
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.setHeader('Content-Disposition', (url.searchParams.get('dl') ? 'attachment' : 'inline') + '; filename="' + String(row.filename).replace(/"/g, '') + '"');
+      res.setHeader('Content-Length', String(end - start + 1));
+      if (partial) res.setHeader('Content-Range', 'bytes ' + start + '-' + end + '/' + size);
+      if (method === 'HEAD') return res.end();
+      for (let ci = Math.floor(start / CH); ci <= Math.floor(end / CH); ci++) {       // one piece in memory at a time
+        const c = (await db.execute({ sql: 'SELECT data FROM sound_chunks WHERE sound_id = ? AND idx = ?', args: [sid, ci] })).rows[0];
+        if (!c) break;
+        const buf = Buffer.from(c.data);
+        const piece = buf.subarray(Math.max(0, start - ci * CH), Math.min(buf.length, end - ci * CH + 1));
+        if (!res.write(piece)) await new Promise((r) => res.once('drain', r));
+      }
+      return res.end();
     }
   }
 
