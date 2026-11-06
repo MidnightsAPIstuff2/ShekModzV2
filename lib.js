@@ -6,13 +6,16 @@ const { createClient } = require('@libsql/client');
 const scrypt = promisify(crypto.scrypt);
 
 const SESSION_TTL_S = 60 * 60 * 24 * 7; // 7 days
-const STATUSES = ['Tested & Working', 'Not Tested', 'Not Working'];
+const STATUSES = ['Tested & Working', 'Not Tested', 'Not Working', 'Soon', 'Patched'];
 const THEMES = ['default', 'summer', 'fall', 'winter', 'spring'];
 const ANNOUNCE_TYPES = ['popup', 'bar'];
 const ANNOUNCE_MAX = 500;
 const SOUND_CHUNK = 2 * 1024 * 1024;          // files are stored and sent in 2 MB pieces so no request or response is ever big
 const SOUND_MAX = 25 * 1024 * 1024;           // per file
 const SOUND_TOTAL_MAX = 1024 * 1024 * 1024;   // whole library
+const BETA_CHUNK = 2 * 1024 * 1024;           // beta APKs use the same small-pieces idea
+const BETA_MAX = 2048 * 1024 * 1024;          // per APK (2 GB)
+const BETA_TOTAL_MAX = 4096 * 1024 * 1024;    // all beta APKs together (4 GB). Must fit inside your Turso plan's storage.
 
 /* ---------- Roles & permissions ----------
    The owner (whoever knows ADMIN_PASSWORD) is not an account: they can do everything,
@@ -26,6 +29,7 @@ const PERMISSIONS = [
   { key: 'inbox', label: 'Answer takedown & update requests' },
   { key: 'devlog', label: 'Post devlogs' },
   { key: 'sounds', label: 'Upload sounds' },
+  { key: 'beta', label: 'Beta page (upload & download test APKs)' },
 ];
 const PERM_KEYS = PERMISSIONS.map((p) => p.key);
 const ROLES = {
@@ -114,6 +118,7 @@ function getDb() {
         file_link TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (date('now'))
       )`);
+      try { await client.execute("ALTER TABLE posts ADD COLUMN version TEXT NOT NULL DEFAULT ''"); } catch (e) { /* column already there */ }
       await client.execute(`CREATE TABLE IF NOT EXISTS post_images (
         post_id INTEGER PRIMARY KEY,
         mime TEXT NOT NULL,
@@ -147,6 +152,25 @@ function getDb() {
         idx INTEGER NOT NULL,
         data BLOB NOT NULL,
         PRIMARY KEY (sound_id, idx)
+      )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS betas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT '',
+        filename TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        chunk INTEGER NOT NULL,
+        chunks INTEGER NOT NULL,
+        uploader TEXT NOT NULL,
+        user_id INTEGER NOT NULL DEFAULT 0,
+        complete INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+      )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS beta_chunks (
+        beta_id INTEGER NOT NULL,
+        idx INTEGER NOT NULL,
+        data BLOB NOT NULL,
+        PRIMARY KEY (beta_id, idx)
       )`);
       const n = Number((await client.execute('SELECT COUNT(*) AS n FROM posts')).rows[0].n);
       if (n === 0) {
@@ -483,14 +507,14 @@ function validatePost(b) {
   const clean = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
   const post = {
     title: clean(b.title, 120), author: clean(b.author, 60), status: clean(b.status, 30),
-    description: clean(b.description, 2000), file_link: clean(b.file_link, 500),
+    description: clean(b.description, 2000), file_link: clean(b.file_link, 500), version: clean(b.version, 20),
   };
   if (!post.title || !post.author || !post.description || !post.file_link) return { error: 'All fields are required.' };
   if (!STATUSES.includes(post.status)) return { error: 'Invalid status.' };
   if (/^[a-z][a-z0-9+.-]*:/i.test(post.file_link) && !/^https?:\/\//i.test(post.file_link)) return { error: 'File link must be an http(s) URL or a filename.' };
   return { post };
 }
-const rowToPost = (r) => ({ id: Number(r.id), title: r.title, author: r.author, status: r.status, desc: r.description, fileLink: r.file_link, date: r.created_at,
+const rowToPost = (r) => ({ id: Number(r.id), title: r.title, author: r.author, status: r.status, desc: r.description, fileLink: r.file_link, date: r.created_at, version: r.version || '',
   image: r.img_v ? '/api/posts/' + Number(r.id) + '/image?v=' + Number(r.img_v) : null });
 const POST_SELECT = 'SELECT p.*, (SELECT updated FROM post_images WHERE post_id = p.id) AS img_v FROM posts p';
 
@@ -743,6 +767,118 @@ async function handleApi(req, res) {
     if (method === 'DELETE' && id) {
       const del = await db.execute({ sql: 'DELETE FROM pages WHERE id = ?', args: [id] });
       return send(res, del.rowsAffected ? 200 : 404, { ok: !!del.rowsAffected });
+    }
+  }
+
+  /* ----- beta APKs: PRIVATE. Only the owner and accounts with the "beta" permission can list, upload or download ----- */
+  const bm = pathname.match(/^\/api\/beta(?:\/(\d+)(?:\/(file|finish|chunk\/(\d+)))?)?$/);
+  if (bm) {
+    const db = await getDb();
+    const auth = await getAuth(req);
+    if (!requirePerm(res, auth, 'beta')) return;            // everything below needs it, downloads included
+    const bid = bm[1] ? Number(bm[1]) : 0, sub = bm[2] || '', cidx = bm[3] !== undefined ? Number(bm[3]) : -1;
+    const clean = (v, max) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+    const getRow = async () => (await db.execute({ sql: 'SELECT * FROM betas WHERE id = ?', args: [bid] })).rows[0];
+    const mine = (row) => auth.owner || (!!auth.user && Number(row.user_id) === Number(auth.user.id));
+    const dropBeta = async (id) => { await db.execute({ sql: 'DELETE FROM beta_chunks WHERE beta_id = ?', args: [id] }); await db.execute({ sql: 'DELETE FROM betas WHERE id = ?', args: [id] }); };
+    res.setHeader('Cache-Control', 'private, no-store');
+
+    if (!bid && method === 'GET') {
+      const r = await db.execute('SELECT id, name, notes, filename, size, chunk, uploader, user_id, created_at FROM betas WHERE complete = 1 ORDER BY id DESC LIMIT 300');
+      return send(res, 200, { me: auth.owner ? 'Owner' : auth.user.username, builds: r.rows.map((x) => ({
+        id: Number(x.id), name: x.name, notes: x.notes, filename: x.filename, size: Number(x.size), chunk: Number(x.chunk), uploader: x.uploader, date: Number(x.created_at), canDelete: mine(x),
+      })) });
+    }
+
+    if (!bid && method === 'POST') {            // step 1: announce an upload
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      let body; try { body = await readJson(req, 5_000); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      const fn = clean(body.filename, 200);
+      if (!/\.apk$/i.test(fn)) return send(res, 400, { error: 'Only .apk files can be uploaded here.' });
+      const size = Number(body.size);
+      if (!Number.isInteger(size) || size < 1) return send(res, 400, { error: 'That file is empty.' });
+      if (size > BETA_MAX) return send(res, 400, { error: 'That file is too big (max ' + BETA_MAX / 1073741824 + ' GB).' });
+      const old = Date.now() - 6 * 3600_000;                  // clear half-finished uploads
+      await db.execute({ sql: 'DELETE FROM beta_chunks WHERE beta_id IN (SELECT id FROM betas WHERE complete = 0 AND created_at < ?)', args: [old] });
+      await db.execute({ sql: 'DELETE FROM betas WHERE complete = 0 AND created_at < ?', args: [old] });
+      const name = clean(body.name, 80) || fn.replace(/\.apk$/i, '').slice(0, 80);
+      const safe = fn.replace(/[^A-Za-z0-9._ -]/g, '_').slice(0, 100);
+      const chunks = Math.ceil(size / BETA_CHUNK);
+      // the same person uploading the same file again continues the unfinished upload instead of starting over
+      const again = (await db.execute({ sql: 'SELECT id, chunk FROM betas WHERE complete = 0 AND user_id = ? AND filename = ? AND size = ? ORDER BY id DESC LIMIT 1', args: [auth.owner ? 0 : Number(auth.user.id), safe, size] })).rows[0];
+      if (again) {
+        await db.execute({ sql: 'UPDATE betas SET name = ?, notes = ?, created_at = ? WHERE id = ?', args: [name, clean(body.notes, 300), Date.now(), Number(again.id)] });
+        const have = (await db.execute({ sql: 'SELECT idx FROM beta_chunks WHERE beta_id = ?', args: [Number(again.id)] })).rows.map((x) => Number(x.idx));
+        return send(res, 201, { id: Number(again.id), chunk: Number(again.chunk), chunks, have });
+      }
+      const used = Number((await db.execute('SELECT COALESCE(SUM(size), 0) AS n FROM betas')).rows[0].n);
+      if (used + size > BETA_TOTAL_MAX) return send(res, 400, { error: 'The beta storage is full. Delete an old build first.' });
+      const ins = await db.execute({ sql: 'INSERT INTO betas (name, notes, filename, size, chunk, chunks, uploader, user_id, complete, created_at) VALUES (?,?,?,?,?,?,?,?,0,?)',
+        args: [name, clean(body.notes, 300), safe, size, BETA_CHUNK, chunks, auth.owner ? 'Owner' : auth.user.username, auth.owner ? 0 : Number(auth.user.id), Date.now()] });
+      return send(res, 201, { id: Number(ins.lastInsertRowid), chunk: BETA_CHUNK, chunks, have: [] });
+    }
+
+    if (bid && sub.startsWith('chunk') && method === 'PUT') {      // step 2: one piece at a time
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      const row = await getRow();
+      if (!row || Number(row.complete) || !mine(row)) return send(res, 404, { error: 'Upload not found.' });
+      if (cidx < 0 || cidx >= Number(row.chunks)) return send(res, 400, { error: 'Bad piece number.' });
+      const want = cidx === Number(row.chunks) - 1 ? Number(row.size) - cidx * Number(row.chunk) : Number(row.chunk);
+      let buf; try { buf = await readRaw(req, want + 1); } catch { return send(res, 400, { error: 'Bad piece.' }); }
+      if (buf.length !== want) return send(res, 400, { error: 'That piece is the wrong size.' });
+      if (cidx === 0 && !(buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04)) { await dropBeta(bid); return send(res, 400, { error: "That doesn't look like a real .apk file." }); }
+      await db.execute({ sql: 'INSERT OR REPLACE INTO beta_chunks (beta_id, idx, data) VALUES (?,?,?)', args: [bid, cidx, buf] });
+      return send(res, 200, { ok: true });
+    }
+
+    if (bid && sub === 'finish' && method === 'POST') {            // step 3: seal it
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      const row = await getRow();
+      if (!row || Number(row.complete) || !mine(row)) return send(res, 404, { error: 'Upload not found.' });
+      const have = Number((await db.execute({ sql: 'SELECT COUNT(*) AS n FROM beta_chunks WHERE beta_id = ?', args: [bid] })).rows[0].n);
+      if (have !== Number(row.chunks)) return send(res, 400, { error: 'The upload is incomplete. Try again.' });
+      await db.execute({ sql: 'UPDATE betas SET complete = 1 WHERE id = ?', args: [bid] });
+      return send(res, 200, { ok: true, id: bid });
+    }
+
+    if (bid && !sub && method === 'DELETE') {
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      const row = await getRow();
+      if (!row) return send(res, 404, { error: 'Not found.' });
+      if (!mine(row)) return send(res, 403, { error: 'You can only delete your own builds.' });
+      await dropBeta(bid);
+      return send(res, 200, { ok: true });
+    }
+
+    if (bid && sub === 'file' && (method === 'GET' || method === 'HEAD')) {
+      const row = await getRow();
+      if (!row || !Number(row.complete)) return send(res, 404, { error: 'Not found.' });
+      const size = Number(row.size), CH = Number(row.chunk);
+      let start = 0, end = size - 1, partial = false;
+      const rg = String(req.headers.range || '').match(/^bytes=(\d*)-(\d*)$/);
+      if (rg && (rg[1] !== '' || rg[2] !== '')) {
+        if (rg[1] === '') start = Math.max(0, size - Number(rg[2]));
+        else { start = Number(rg[1]); if (rg[2] !== '') end = Math.min(end, Number(rg[2])); }
+        if (start >= size || start > end) { res.statusCode = 416; res.setHeader('Content-Range', 'bytes */' + size); return res.end(); }
+        partial = true;
+        if (rg[1] !== '' && rg[2] !== '') end = Math.min(end, start + 4 * 1048576 - 1);   // an exact range stays small; "from here to the end" (a resumed download) streams
+      }
+      res.statusCode = partial ? 206 : 200;
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + String(row.filename).replace(/"/g, '') + '"');
+      res.setHeader('Content-Length', String(end - start + 1));
+      if (partial) res.setHeader('Content-Range', 'bytes ' + start + '-' + end + '/' + size);
+      if (method === 'HEAD') return res.end();
+      for (let ci = Math.floor(start / CH); ci <= Math.floor(end / CH); ci++) {       // one piece in memory at a time
+        const c = (await db.execute({ sql: 'SELECT data FROM beta_chunks WHERE beta_id = ? AND idx = ?', args: [bid, ci] })).rows[0];
+        if (!c) break;
+        const buf = Buffer.from(c.data);
+        const piece = buf.subarray(Math.max(0, start - ci * CH), Math.min(buf.length, end - ci * CH + 1));
+        if (!res.write(piece)) await new Promise((r) => res.once('drain', r));
+      }
+      return res.end();
     }
   }
 
@@ -1090,7 +1226,7 @@ async function handleApi(req, res) {
       if (error) return send(res, 400, { error });
       const img = body.image ? parseImage(body.image) : null;
       if (body.image && !img) return send(res, 400, { error: 'That picture could not be used. Use a JPG, PNG or WebP.' });
-      const ins = await db.execute({ sql: 'INSERT INTO posts (title, author, status, description, file_link) VALUES (?,?,?,?,?)', args: [post.title, post.author, post.status, post.description, post.file_link] });
+      const ins = await db.execute({ sql: 'INSERT INTO posts (title, author, status, description, file_link, version) VALUES (?,?,?,?,?,?)', args: [post.title, post.author, post.status, post.description, post.file_link, post.version] });
       if (img) await saveImage(db, Number(ins.lastInsertRowid), img);
       const row = (await db.execute({ sql: POST_SELECT + ' WHERE p.id = ?', args: [Number(ins.lastInsertRowid)] })).rows[0];
       return send(res, 201, rowToPost(row));
@@ -1102,7 +1238,7 @@ async function handleApi(req, res) {
       const hasImg = Object.prototype.hasOwnProperty.call(body, 'image');   // omitted = keep the current picture, null = remove it
       const img = hasImg && body.image ? parseImage(body.image) : null;
       if (hasImg && body.image && !img) return send(res, 400, { error: 'That picture could not be used. Use a JPG, PNG or WebP.' });
-      const up = await db.execute({ sql: 'UPDATE posts SET title=?, author=?, status=?, description=?, file_link=? WHERE id=?', args: [post.title, post.author, post.status, post.description, post.file_link, Number(m[1])] });
+      const up = await db.execute({ sql: 'UPDATE posts SET title=?, author=?, status=?, description=?, file_link=?, version=? WHERE id=?', args: [post.title, post.author, post.status, post.description, post.file_link, post.version, Number(m[1])] });
       if (!up.rowsAffected) return send(res, 404, { error: 'Not found.' });
       if (hasImg) await saveImage(db, Number(m[1]), img);
       const row = (await db.execute({ sql: POST_SELECT + ' WHERE p.id = ?', args: [Number(m[1])] })).rows[0];
