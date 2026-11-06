@@ -142,8 +142,9 @@
         border: 1px solid rgba(var(--accent-rgb)/0.45); border-radius: 12px; background: #050506;
         box-shadow: 0 0 24px rgba(var(--accent-rgb)/0.3), inset 0 0 12px rgba(var(--accent-rgb)/0.08); }
     .admin-menu.open { display: block; }
-    .admin-menu > button.flex, .admin-menu > button:not(.hidden) { display: flex; }
-    .admin-menu > button.hidden { display: none; }
+    .admin-menu > button.flex, .admin-menu > button:not(.hidden), .admin-menu > a:not(.hidden) { display: flex; }
+    .admin-menu > button.hidden, .admin-menu > a.hidden { display: none; }
+    .admin-menu > a { color: inherit; text-decoration: none; }
 </style>
 </head>
 <body class="relative min-h-screen">
@@ -174,6 +175,9 @@
                             <span id="adminMenuBadge" class="hidden absolute -top-2 -right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(var(--accent-rgb)/0.9)]"></span>
                         </button>
                         <div id="adminMenu" class="admin-menu" role="menu">
+                            <a id="betaBtn" href="/beta/" class="hidden w-full text-left px-3 py-2 rounded-md hover:bg-white hover:text-black transition-colors font-mono text-xs uppercase tracking-wider font-bold items-center gap-2 flex" title="Private page for test APKs">
+                                <i class="fa-solid fa-flask text-xs w-4 text-center"></i> Beta Tests
+                            </a>
                             <button id="usersBtn" onclick="closeAdminMenu(); openUsersModal()" class="hidden w-full text-left px-3 py-2 rounded-md hover:bg-white hover:text-black transition-colors font-mono text-xs uppercase tracking-wider font-bold items-center gap-2 flex" title="Manage accounts: roles, permissions, bans">
                                 <i class="fa-solid fa-users text-xs w-4 text-center"></i> Users
                             </button>
@@ -276,6 +280,8 @@
                     <button onclick="setFilter('Tested & Working')" id="filterWorking" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition">WORKING</button>
                     <button onclick="setFilter('Not Tested')" id="filterNotTested" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition">UNTESTED</button>
                     <button onclick="setFilter('Not Working')" id="filterNotWorking" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition">BROKEN</button>
+                    <button onclick="setFilter('Soon')" id="filterSoon" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition">SOON</button>
+                    <button onclick="setFilter('Patched')" id="filterPatched" class="px-3 py-1.5 rounded-lg border border-white/20 bg-black hover:border-white text-xs font-mono text-soft/80 transition">PATCHED</button>
                 </div>
             </div>
 
@@ -679,7 +685,15 @@
                         <option value="Tested & Working">Tested & Working</option>
                         <option value="Not Tested">Not Tested</option>
                         <option value="Not Working">Not Working</option>
+                        <option value="Soon">Soon</option>
+                        <option value="Patched">Patched</option>
                     </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono text-soft/80 uppercase mb-1">VERSION (optional)</label>
+                    <input type="text" id="postVersionInput" maxlength="20" placeholder="e.g., v1.4.2"
+                        class="w-full px-4 py-2.5 bg-black border border-white/20 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-white">
                 </div>
 
                 <div>
@@ -810,9 +824,10 @@
             $('inboxBtn').classList.toggle('flex', can('inbox'));
             if (can('inbox')) pollInboxBadge(); else { setInboxBadge(0); closeInbox(); }
             $('usersBtn').classList.toggle('hidden', !isOwner);
+            $('betaBtn').classList.toggle('hidden', !can('beta'));
             $('createPageBtn').classList.toggle('hidden', !isOwner);
             if (!isOwner) closePagesModal();
-            const anyTool = isOwner || can('announce') || can('inbox') || can('theme');
+            const anyTool = isOwner || can('announce') || can('inbox') || can('theme') || can('beta');
             $('adminMenuWrap').classList.toggle('hidden', !anyTool);
             if (!anyTool) closeAdminMenu();
             const picker = $('themePicker');
@@ -1184,7 +1199,7 @@
 
         function setFilter(filter) {
             activeFilter = filter;
-            const ids = { 'ALL': 'filterAll', 'Tested & Working': 'filterWorking', 'Not Tested': 'filterNotTested', 'Not Working': 'filterNotWorking' };
+            const ids = { 'ALL': 'filterAll', 'Tested & Working': 'filterWorking', 'Not Tested': 'filterNotTested', 'Not Working': 'filterNotWorking', 'Soon': 'filterSoon', 'Patched': 'filterPatched' };
             Object.entries(ids).forEach(([f, id]) => {
                 const el = document.getElementById(id);
                 el.className = f === activeFilter
@@ -1201,6 +1216,7 @@
             document.getElementById('postTitleInput').value = post ? post.title : '';
             document.getElementById('postAuthorInput').value = post ? post.author : '';
             document.getElementById('postStatusInput').value = post ? post.status : 'Tested & Working';
+            document.getElementById('postVersionInput').value = post ? (post.version || '') : '';
             document.getElementById('postDescInput').value = post ? post.desc : '';
             document.getElementById('postFileInput').value = post ? post.fileLink : '';
             setPostImage(post && post.image ? { mode: 'keep', src: post.image } : { mode: 'none' });
@@ -1254,6 +1270,7 @@
                 title: document.getElementById('postTitleInput').value,
                 author: document.getElementById('postAuthorInput').value,
                 status: document.getElementById('postStatusInput').value,
+                version: document.getElementById('postVersionInput').value,
                 description: document.getElementById('postDescInput').value,
                 file_link: document.getElementById('postFileInput').value,
                 ...(postImg.mode === 'new' ? { image: postImg.data } : postImg.mode === 'removed' && id ? { image: null } : {}),
@@ -1301,6 +1318,16 @@
                             <i class="fa-solid fa-triangle-exclamation"></i> UNTESTED
                         </span>`;
             }
+            if (status === 'Soon') {
+                return `<span class="px-2.5 py-1 rounded-full border border-dashed border-white/60 text-white text-[10px] font-mono tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-hourglass-half"></i> SOON
+                        </span>`;
+            }
+            if (status === 'Patched') {
+                return `<span class="px-2.5 py-1 rounded-full bg-zinc-900 border border-white/30 text-soft/60 text-[10px] font-mono tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-lock"></i> PATCHED
+                        </span>`;
+            }
             return `<span class="px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-700 text-soft/50 line-through text-[10px] font-mono tracking-wider flex items-center gap-1.5">
                         <i class="fa-solid fa-bug text-xs"></i> NOT WORKING
                     </span>`;
@@ -1343,6 +1370,7 @@
             container.innerHTML = filtered.map(post => `
                 <div class="glass-panel rounded-2xl border border-white/15 p-6 flex flex-col justify-between hover:border-white/50 transition-all duration-300 glow-box-sm group relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl pointer-events-none group-hover:bg-white/10 transition"></div>
+                    ${post.version ? `<span class="absolute bottom-1.5 right-3 text-[10px] font-mono text-white/25 pointer-events-none select-none">${esc(post.version)}</span>` : ''}
                     <div>
                         ${post.image ? `<a href="/mod/${post.id}" style="display:block;position:relative;margin:-1.5rem -1.5rem 1.25rem;height:11rem;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.1)">
                             <img src="${esc(post.image)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">
