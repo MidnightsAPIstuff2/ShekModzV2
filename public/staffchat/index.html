@@ -75,7 +75,7 @@
     var role = s.owner ? 'owner' : s.user ? s.user.role : 'member';
     if (!(s.permissions || []).includes('staffchat')) return denied('access denied: this room is for moderators and above.');
     meEl.textContent = name; meEl.className = 'p ' + role;
-    log.innerHTML = ''; sys('-- staff channel. moderators and above only. be nice. --');
+    log.innerHTML = ''; sys('-- only mods and above can access --');
     poll(); timer = setInterval(poll, 2500); msg.focus();
   }).catch(function () { denied('could not reach the server.'); });
   document.addEventListener('visibilitychange', poll);
