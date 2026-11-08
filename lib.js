@@ -30,12 +30,13 @@ const PERMISSIONS = [
   { key: 'devlog', label: 'Post devlogs' },
   { key: 'sounds', label: 'Upload sounds' },
   { key: 'beta', label: 'Beta page (upload & download test APKs)' },
+  { key: 'staffchat', label: 'Staff chat (terminal chat for the team)' },
 ];
 const PERM_KEYS = PERMISSIONS.map((p) => p.key);
 const ROLES = {
   member: { label: 'Member', perms: [] },
   mod_maker: { label: 'Mod Maker', perms: ['post'] },
-  moderator: { label: 'Moderator', perms: ['delete'] },
+  moderator: { label: 'Moderator', perms: ['delete', 'staffchat'] },
   admin: { label: 'Admin', perms: PERM_KEYS },
   custom: { label: 'Custom', perms: null }, // picked by the owner, stored per account
 };
@@ -124,6 +125,14 @@ function getDb() {
         mime TEXT NOT NULL,
         data TEXT NOT NULL,
         updated INTEGER NOT NULL
+      )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS staff_chat (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL DEFAULT 0,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at INTEGER NOT NULL
       )`);
       await client.execute(`CREATE TABLE IF NOT EXISTS devlogs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -490,6 +499,7 @@ function badOrigin(req) {
   return host !== req.headers.host;
 }
 // Sends the right error and returns false when the caller may not do `perm`.
+const chatHits = new Map();   // staff chat flood control (per warm instance)
 function requirePerm(res, auth, perm) {
   if (auth && auth.perms.has(perm)) return true;
   if (!auth) send(res, 401, { error: 'Log in first.' });
@@ -1047,6 +1057,43 @@ async function handleApi(req, res) {
       const upd = (await db.execute({ sql: 'SELECT * FROM devlogs WHERE id = ?', args: [Number(dm[1])] })).rows[0];
       return send(res, 200, out(upd));
     }
+  }
+
+  /* ----- staff chat: moderators, admins and the owner (anyone with the "staffchat" permission) ----- */
+  if (pathname === '/api/staffchat') {
+    const auth = await getAuth(req);
+    if (!requirePerm(res, auth, 'staffchat')) return;
+    const db = await getDb();
+    const out = (r) => {
+      const role = r.live_role ? (ROLES[r.live_role] ? r.live_role : 'member') : (ROLES[r.role] || r.role === 'owner' ? r.role : 'member');
+      return { id: Number(r.id), name: r.live_name || r.name, role, roleLabel: role === 'owner' ? 'Owner' : ROLES[role].label, text: r.text, at: Number(r.created_at) };
+    };
+    if (method === 'GET') {
+      const after = Number(url.searchParams.get('after')) || 0;
+      const base = 'SELECT c.*, u.role AS live_role, u.username AS live_name FROM staff_chat c LEFT JOIN users u ON c.user_id > 0 AND u.id = c.user_id';
+      const rows = after > 0
+        ? (await db.execute({ sql: base + ' WHERE c.id > ? ORDER BY c.id LIMIT 200', args: [after] })).rows
+        : (await db.execute({ sql: base + ' ORDER BY c.id DESC LIMIT 100', args: [] })).rows.reverse();
+      return send(res, 200, { messages: rows.map(out) });
+    }
+    if (method === 'POST') {
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      let body; try { body = await readJson(req, 4000); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      const text = typeof body.text === 'string' ? body.text.replace(/\s+/g, ' ').trim().slice(0, 500) : '';
+      if (!text) return send(res, 400, { error: 'Type something first.' });
+      const key = auth.owner ? 'owner' : 'u' + auth.user.id;
+      const now = Date.now();
+      const hits = (chatHits.get(key) || []).filter((t) => now - t < 10_000);
+      if (hits.length >= 8) return send(res, 429, { error: 'Slow down a little.' });
+      hits.push(now); chatHits.set(key, hits);
+      const name = auth.owner ? 'owner' : auth.user.username;
+      const role = auth.owner ? 'owner' : (ROLES[auth.user.role] ? auth.user.role : 'member');
+      const ins = await db.execute({ sql: 'INSERT INTO staff_chat (user_id, name, role, text, created_at) VALUES (?,?,?,?,?)', args: [auth.owner ? 0 : Number(auth.user.id), name, role, text, now] });
+      const id = Number(ins.lastInsertRowid);
+      db.execute({ sql: 'DELETE FROM staff_chat WHERE id <= ?', args: [id - 1000] }).catch(() => {});   // keep the last 1000 lines
+      return send(res, 201, { id, name, role, roleLabel: role === 'owner' ? 'Owner' : ROLES[role].label, text, at: now });
+    }
+    return send(res, 405, { error: 'Method not allowed.' });
   }
 
   /* ----- staff team page (public to read, owner edits) ----- */
