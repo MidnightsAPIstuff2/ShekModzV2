@@ -178,6 +178,9 @@
                             <a id="betaBtn" href="/beta/" class="hidden w-full text-left px-3 py-2 rounded-md hover:bg-white hover:text-black transition-colors font-mono text-xs uppercase tracking-wider font-bold items-center gap-2 flex" title="Private page for test APKs">
                                 <i class="fa-solid fa-flask text-xs w-4 text-center"></i> Beta Tests
                             </a>
+                            <a id="staffChatBtn" href="/staffchat/" class="hidden w-full text-left px-3 py-2 rounded-md hover:bg-white hover:text-black transition-colors font-mono text-xs uppercase tracking-wider font-bold items-center gap-2 flex" title="Private terminal chat for moderators and above">
+                                <i class="fa-solid fa-terminal text-xs w-4 text-center"></i> Staff Chat
+                            </a>
                             <button id="usersBtn" onclick="closeAdminMenu(); openUsersModal()" class="hidden w-full text-left px-3 py-2 rounded-md hover:bg-white hover:text-black transition-colors font-mono text-xs uppercase tracking-wider font-bold items-center gap-2 flex" title="Manage accounts: roles, permissions, bans">
                                 <i class="fa-solid fa-users text-xs w-4 text-center"></i> Users
                             </button>
@@ -825,9 +828,10 @@
             if (can('inbox')) pollInboxBadge(); else { setInboxBadge(0); closeInbox(); }
             $('usersBtn').classList.toggle('hidden', !isOwner);
             $('betaBtn').classList.toggle('hidden', !can('beta'));
+            $('staffChatBtn').classList.toggle('hidden', !can('staffchat'));
             $('createPageBtn').classList.toggle('hidden', !isOwner);
             if (!isOwner) closePagesModal();
-            const anyTool = isOwner || can('announce') || can('inbox') || can('theme') || can('beta');
+            const anyTool = isOwner || can('announce') || can('inbox') || can('theme') || can('beta') || can('staffchat');
             $('adminMenuWrap').classList.toggle('hidden', !anyTool);
             if (!anyTool) closeAdminMenu();
             const picker = $('themePicker');
@@ -1388,9 +1392,11 @@
                             <span class="text-soft/50">AUTHOR: <strong class="text-white">${esc(post.author)}</strong></span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <a href="${esc(safeUrl(post.fileLink))}" target="_blank" rel="noopener noreferrer" class="flex-grow py-2 px-4 rounded-xl border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 text-center font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                            ${post.status === 'Soon' ? `<span class="flex-grow py-2 px-4 rounded-xl border border-dashed border-white/30 bg-black/60 text-soft/50 cursor-not-allowed select-none text-center font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-hourglass-half text-xs"></i> Coming Soon
+                            </span>` : `<a href="${esc(safeUrl(post.fileLink))}" target="_blank" rel="noopener noreferrer" class="flex-grow py-2 px-4 rounded-xl border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 text-center font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-download text-xs"></i> Get File
-                            </a>
+                            </a>`}
                             <button onclick="openRequestModal(${post.id})" title="Request a takedown or an update" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
                                 <i class="fa-regular fa-envelope"></i>
                             </button>
