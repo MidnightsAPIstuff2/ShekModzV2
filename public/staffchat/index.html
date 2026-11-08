@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>staff chat | standy.best</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: #000; color: #d4d4d8; font: 14px/1.5 ui-monospace, "JetBrains Mono", Menlo, Consolas, "Courier New", monospace; }
+  #term { display: flex; flex-direction: column; height: 100%; max-width: 960px; margin: 0 auto; padding: 12px 14px; }
+  #bar { flex: none; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px dashed #3f3f46; color: #71717a; font-size: 12px; }
+  #bar a { color: #a1a1aa; text-decoration: none; } #bar a:hover { color: #fff; }
+  #bar .sp { flex: 1; }
+  #log { flex: 1; overflow-y: auto; word-break: break-word; padding-right: 6px; }
+  .line { white-space: pre-wrap; }
+  .line .t { color: #52525b; }
+  .line .n { font-weight: 700; }
+  .line .g { color: #71717a; }
+  .sys { color: #71717a; }
+  #in { flex: none; display: flex; gap: 8px; align-items: center; border-top: 1px dashed #3f3f46; margin-top: 8px; padding-top: 10px; }
+  #in .p { font-weight: 700; }
+  #msg { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: #fff; font: inherit; caret-color: #fff; padding: 0; }
+  .owner { color: #fbbf24; } .admin { color: #f87171; } .moderator { color: #4ade80; } .custom { color: #67e8f9; } .member, .mod_maker { color: #e4e4e7; }
+  ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-thumb { background: #27272a; }
+</style>
+</head>
+<body>
+<div id="term">
+  <div id="bar">
+    <span>staff@standy.best:~$ chat</span>
+    <span><span class="owner">owner</span> <span class="admin">admin</span> <span class="moderator">moderator</span> <span class="custom">custom</span></span>
+    <span class="sp"></span>
+    <a href="/">[ exit ]</a>
+  </div>
+  <div id="log"><div class="sys">connecting...</div></div>
+  <form id="in" autocomplete="off"><span class="p" id="me">?</span><span class="p">&gt;</span><input id="msg" maxlength="500" spellcheck="false" autofocus aria-label="message"></form>
+</div>
+<script>
+(function () {
+  var log = document.getElementById('log'), msg = document.getElementById('msg'), meEl = document.getElementById('me');
+  var last = 0, busy = false, sent = [], hist = -1;
+  function api(path, opts) {
+    opts = opts || {}; opts.credentials = 'same-origin'; opts.cache = 'no-store';
+    if (opts.body) opts.headers = { 'Content-Type': 'application/json' };
+    return fetch(path, opts).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) { var e = new Error(d.error || 'error'); e.status = r.status; throw e; } return d; });
+    });
+  }
+  function sys(text) { var d = document.createElement('div'); d.className = 'sys'; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; }
+  function add(m) {
+    var near = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+    var d = document.createElement('div'); d.className = 'line';
+    var t = document.createElement('span'); t.className = 't'; t.textContent = new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ';
+    var n = document.createElement('span'); n.className = 'n ' + m.role; n.textContent = m.name; n.title = m.roleLabel;
+    var g = document.createElement('span'); g.className = 'g'; g.textContent = ' > ';
+    var x = document.createElement('span'); x.textContent = m.text;
+    d.appendChild(t); d.appendChild(n); d.appendChild(g); d.appendChild(x); log.appendChild(d);
+    if (m.id > last) last = m.id;
+    if (near) log.scrollTop = log.scrollHeight;
+  }
+  function denied(text) {
+    document.getElementById('in').style.display = 'none';
+    log.innerHTML = ''; sys(text); clearInterval(timer);
+  }
+  var timer = null;
+  function poll() {
+    if (document.hidden || busy) return; busy = true;
+    api('/api/staffchat' + (last ? '?after=' + last : '')).then(function (d) { d.messages.forEach(add); })
+      .catch(function (e) { if (e.status === 401 || e.status === 403) denied('access denied: ' + (e.status === 401 ? 'log in on the main page first.' : e.message)); })
+      .then(function () { busy = false; });
+  }
+  api('/api/session').then(function (s) {
+    var name = s.owner ? 'owner' : s.user ? s.user.username : '';
+    var role = s.owner ? 'owner' : s.user ? s.user.role : 'member';
+    if (!(s.permissions || []).includes('staffchat')) return denied('access denied: this room is for moderators and above.');
+    meEl.textContent = name; meEl.className = 'p ' + role;
+    log.innerHTML = ''; sys('-- staff channel. moderators and above only. be nice. --');
+    poll(); timer = setInterval(poll, 2500); msg.focus();
+  }).catch(function () { denied('could not reach the server.'); });
+  document.addEventListener('visibilitychange', poll);
+  document.getElementById('in').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var text = msg.value.trim(); if (!text) return;
+    msg.value = ''; sent.unshift(text); hist = -1;
+    api('/api/staffchat', { method: 'POST', body: JSON.stringify({ text: text }) })
+      .then(function (m) { add(m); })
+      .catch(function (er) { sys('error: ' + er.message); });
+  });
+  msg.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowUp' && sent.length) { hist = Math.min(hist + 1, sent.length - 1); msg.value = sent[hist]; e.preventDefault(); }
+    else if (e.key === 'ArrowDown') { hist = Math.max(hist - 1, -1); msg.value = hist < 0 ? '' : sent[hist]; e.preventDefault(); }
+  });
+  document.getElementById('log').addEventListener('click', function () { if (!getSelection().toString()) msg.focus(); });
+})();
+</script>
+</body>
+</html>
