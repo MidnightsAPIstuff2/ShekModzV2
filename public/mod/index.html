@@ -74,8 +74,8 @@
                 '<div class="row">' + b + '<span class="date">' + esc(p.date) + '</span></div>' +
                 '<h1>' + esc(p.title) + '</h1>' +
                 '<p class="desc">' + esc(p.desc) + '</p>' +
-                '<div class="author">AUTHOR: <strong>' + esc(p.author) + '</strong></div>' +
-                '<div class="btns"><a class="btn" target="_blank" rel="noopener noreferrer" href="' + esc(safeUrl(p.fileLink)) + '"><i class="fa-solid fa-download"></i> Get File</a>' +
+                '<div class="author">AUTHOR: <strong>' + esc(p.author) + '</strong> &middot; <i class="fa-solid fa-download"></i> <strong>' + Number(p.downloads || 0).toLocaleString() + '</strong> downloads</div>' +
+                '<div class="btns">' + (p.status === 'Soon' ? '<span class="btn" style="opacity:.5;border-style:dashed;cursor:not-allowed"><i class="fa-solid fa-hourglass-half"></i> Coming Soon</span>' : '<a class="btn" target="_blank" rel="noopener noreferrer" href="/api/go/' + p.id + '"><i class="fa-solid fa-download"></i> Get File</a>') +
                 '<button class="btn" id="cp"><i class="fa-solid fa-link"></i> Copy Link</button>' +
                 '<a class="btn" href="/?request=' + p.id + '"><i class="fa-regular fa-envelope"></i> Takedown / Update</a></div>' +
                 (p.version ? '<span class="ver">' + esc(p.version) + '</span>' : '');
