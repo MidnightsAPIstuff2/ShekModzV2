@@ -31,12 +31,13 @@ const PERMISSIONS = [
   { key: 'sounds', label: 'Upload sounds' },
   { key: 'beta', label: 'Beta page (upload & download test APKs)' },
   { key: 'staffchat', label: 'Staff chat (terminal chat for the team)' },
+  { key: 'publish', label: 'Publishing requests (read, accept, decline, reply)' },
 ];
 const PERM_KEYS = PERMISSIONS.map((p) => p.key);
 const ROLES = {
   member: { label: 'Member', perms: [] },
   mod_maker: { label: 'Mod Maker', perms: ['post'] },
-  moderator: { label: 'Moderator', perms: ['delete', 'staffchat'] },
+  moderator: { label: 'Moderator', perms: ['delete', 'staffchat', 'publish'] },
   admin: { label: 'Admin', perms: PERM_KEYS },
   custom: { label: 'Custom', perms: null }, // picked by the owner, stored per account
 };
@@ -103,6 +104,31 @@ function getDb() {
         created_at INTEGER NOT NULL
       )`);
       await client.execute('CREATE INDEX IF NOT EXISTS request_messages_req ON request_messages (request_id)');
+      await client.execute(`CREATE TABLE IF NOT EXISTS publish_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE,
+        mod_name TEXT NOT NULL,
+        game TEXT NOT NULL,
+        link TEXT NOT NULL,
+        players INTEGER NOT NULL DEFAULT 0,
+        description TEXT NOT NULL,
+        name TEXT NOT NULL,
+        contact TEXT NOT NULL DEFAULT '',
+        user_id INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'pending',
+        note TEXT NOT NULL DEFAULT '',
+        unread INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS publish_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id INTEGER NOT NULL,
+        sender TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS publish_messages_req ON publish_messages (request_id)');
       await client.execute(`CREATE TABLE IF NOT EXISTS pages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         slug TEXT NOT NULL UNIQUE,
@@ -120,6 +146,7 @@ function getDb() {
         created_at TEXT NOT NULL DEFAULT (date('now'))
       )`);
       try { await client.execute("ALTER TABLE posts ADD COLUMN version TEXT NOT NULL DEFAULT ''"); } catch (e) { /* column already there */ }
+      try { await client.execute("ALTER TABLE posts ADD COLUMN downloads INTEGER NOT NULL DEFAULT 0"); } catch (e) { /* column already there */ }
       await client.execute(`CREATE TABLE IF NOT EXISTS post_images (
         post_id INTEGER PRIMARY KEY,
         mime TEXT NOT NULL,
@@ -401,11 +428,35 @@ function reqLimited(ip, kind) {
   return false;
 }
 const REQ_TYPES = ['takedown', 'update'];
+/* ---- "Publish my mod" requests ---- */
+const BLOCKED_GAMES = ['spooky scary', 'big scary', 'sig bcary', 'primal powers'];   // edit this list to change which games are refused
+const normGame = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const isBlockedGame = (v) => { const n = normGame(v); return !!n && BLOCKED_GAMES.some((g) => n.includes(normGame(g))); };
+const PUB_STATUSES = ['pending', 'approved', 'declined'];
+const dlSeen = new Map();   // ip+mod -> last counted time, so refreshing can't inflate a download count
+const pubRate = new Map();
+function pubLimited(ip, kind) {
+  const win = kind === 'new' ? 60 * 60 * 1000 : 10 * 60 * 1000, max = kind === 'new' ? 4 : 60;
+  const key = kind + ':' + ip, now = Date.now();
+  const rec = (pubRate.get(key) || []).filter((t) => now - t < win);
+  if (rec.length >= max) { pubRate.set(key, rec); return true; }
+  rec.push(now); pubRate.set(key, rec);
+  if (pubRate.size > 5000) pubRate.clear();
+  return false;
+}
+async function loadPub(db, row, forStaff) {
+  const msgs = (await db.execute({ sql: 'SELECT * FROM publish_messages WHERE request_id = ? ORDER BY id ASC', args: [Number(row.id)] })).rows.map(rowToMsg);
+  return {
+    id: Number(row.id), code: row.code, modName: row.mod_name, game: row.game, link: row.link, players: Number(row.players),
+    description: row.description, name: row.name, status: row.status, createdAt: Number(row.created_at), updatedAt: Number(row.updated_at), messages: msgs,
+    ...(forStaff ? { contact: row.contact, userId: Number(row.user_id), note: row.note, unread: !!Number(row.unread) } : {}),
+  };
+}
 const REQ_MSG_MAX = 3000;
 const REQ_THREAD_MAX = 40;
-const newCode = () => {
+const newCode = (prefix = 'SM-') => {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return 'SM-' + Array.from(crypto.randomBytes(10), (b) => alphabet[b % alphabet.length]).join('');
+  return prefix + Array.from(crypto.randomBytes(10), (b) => alphabet[b % alphabet.length]).join('');
 };
 const cleanText = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, max) : '');
 const rowToMsg = (m) => ({ id: Number(m.id), from: m.sender === 'dev' ? 'dev' : 'user', body: m.body, time: Number(m.created_at) });
@@ -524,7 +575,7 @@ function validatePost(b) {
   if (/^[a-z][a-z0-9+.-]*:/i.test(post.file_link) && !/^https?:\/\//i.test(post.file_link)) return { error: 'File link must be an http(s) URL or a filename.' };
   return { post };
 }
-const rowToPost = (r) => ({ id: Number(r.id), title: r.title, author: r.author, status: r.status, desc: r.description, fileLink: r.file_link, date: r.created_at, version: r.version || '',
+const rowToPost = (r) => ({ id: Number(r.id), title: r.title, author: r.author, status: r.status, desc: r.description, fileLink: r.file_link, date: r.created_at, version: r.version || '', downloads: Number(r.downloads) || 0,
   image: r.img_v ? '/api/posts/' + Number(r.id) + '/image?v=' + Number(r.img_v) : null });
 const POST_SELECT = 'SELECT p.*, (SELECT updated FROM post_images WHERE post_id = p.id) AS img_v FROM posts p';
 
@@ -1060,7 +1111,7 @@ async function handleApi(req, res) {
   }
 
   /* ----- staff chat: moderators, admins and the owner (anyone with the "staffchat" permission) ----- */
-  if (pathname === '/api/staffchat') {
+  if (pathname === '/api/staffchat' || pathname === '/api/staffchat/export') {
     const auth = await getAuth(req);
     if (!requirePerm(res, auth, 'staffchat')) return;
     const db = await getDb();
@@ -1068,6 +1119,13 @@ async function handleApi(req, res) {
       const role = r.live_role ? (ROLES[r.live_role] ? r.live_role : 'member') : (ROLES[r.role] || r.role === 'owner' ? r.role : 'member');
       return { id: Number(r.id), name: r.live_name || r.name, role, roleLabel: role === 'owner' ? 'Owner' : ROLES[role].label, text: r.text, at: Number(r.created_at) };
     };
+    if (pathname === '/api/staffchat/export') {      // owner only: the whole log, 2000 lines per request (Vercel caps response size)
+      if (method !== 'GET') return send(res, 405, { error: 'Method not allowed.' });
+      if (!requireOwner(res, auth)) return;
+      const after = Number(url.searchParams.get('after')) || 0;
+      const rows = (await db.execute({ sql: 'SELECT c.*, u.role AS live_role, u.username AS live_name FROM staff_chat c LEFT JOIN users u ON c.user_id > 0 AND u.id = c.user_id WHERE c.id > ? ORDER BY c.id LIMIT 2000', args: [after] })).rows;
+      return send(res, 200, { messages: rows.map(out), done: rows.length < 2000 });
+    }
     if (method === 'GET') {
       const after = Number(url.searchParams.get('after')) || 0;
       const base = 'SELECT c.*, u.role AS live_role, u.username AS live_name FROM staff_chat c LEFT JOIN users u ON c.user_id > 0 AND u.id = c.user_id';
@@ -1090,7 +1148,6 @@ async function handleApi(req, res) {
       const role = auth.owner ? 'owner' : (ROLES[auth.user.role] ? auth.user.role : 'member');
       const ins = await db.execute({ sql: 'INSERT INTO staff_chat (user_id, name, role, text, created_at) VALUES (?,?,?,?,?)', args: [auth.owner ? 0 : Number(auth.user.id), name, role, text, now] });
       const id = Number(ins.lastInsertRowid);
-      db.execute({ sql: 'DELETE FROM staff_chat WHERE id <= ?', args: [id - 1000] }).catch(() => {});   // keep the last 1000 lines
       return send(res, 201, { id, name, role, roleLabel: role === 'owner' ? 'Owner' : ROLES[role].label, text, at: now });
     }
     return send(res, 405, { error: 'Method not allowed.' });
@@ -1223,6 +1280,149 @@ async function handleApi(req, res) {
     if (!ib[2] && method === 'DELETE') {
       await db.execute({ sql: 'DELETE FROM request_messages WHERE request_id = ?', args: [id] });
       await db.execute({ sql: 'DELETE FROM requests WHERE id = ?', args: [id] });
+      return send(res, 200, { ok: true });
+    }
+  }
+
+
+  /* ----- download counter: every "Get File" goes through here, then on to the real link ----- */
+  const goM = pathname.match(/^\/api\/go\/(\d+)$/);
+  if (goM && method === 'GET') {
+    const db = await getDb();
+    const row = (await db.execute({ sql: 'SELECT id, status, file_link FROM posts WHERE id = ?', args: [Number(goM[1])] })).rows[0];
+    if (!row || row.status === 'Soon') { res.statusCode = 302; res.setHeader('Location', '/'); return res.end(); }
+    const key = ip + ':' + row.id, now = Date.now();
+    if (!dlSeen.has(key) || now - dlSeen.get(key) > 60 * 60 * 1000) {
+      dlSeen.set(key, now);
+      if (dlSeen.size > 5000) dlSeen.clear();
+      await db.execute({ sql: 'UPDATE posts SET downloads = downloads + 1 WHERE id = ?', args: [Number(row.id)] });
+    }
+    const link = String(row.file_link);
+    const target = /^https?:\/\//i.test(link) ? link : (/^[a-z][a-z0-9+.-]*:/i.test(link) ? '/' : '/' + encodeURI(link.replace(/^\/+/, '')));
+    res.statusCode = 302; res.setHeader('Location', target); res.setHeader('Cache-Control', 'no-store');
+    return res.end();
+  }
+
+  /* ----- "Publish my mod" requests (public side: no account needed, a code is the key, like tickets) ----- */
+  if (pathname === '/api/publish' && method === 'POST') {
+    if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+    const auth = await getAuth(req);
+    if (auth && auth.banned) return send(res, 403, { error: banMessage(auth.banned), banned: auth.banned });
+    let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+    if (typeof body.website === 'string' && body.website.trim() !== '') return send(res, 201, { code: newCode('PB-'), id: 0 });
+    const modName = cleanText(body.modName, 80), game = cleanText(body.game, 80), link = cleanText(body.link, 500);
+    const description = cleanText(body.description, REQ_MSG_MAX), contact = cleanText(body.contact, 120);
+    const players = Math.floor(Number(body.players));
+    if (!modName) return send(res, 400, { error: 'Enter the name of your mod.' });
+    if (!game) return send(res, 400, { error: 'Enter which game the mod is for.' });
+    if (isBlockedGame(game) || isBlockedGame(modName)) return send(res, 400, { error: 'Sorry, mods for that game are not accepted for publishing.' });
+    if (!/^https?:\/\/[^\s]+\.[^\s]+$/i.test(link)) return send(res, 400, { error: 'Enter a link to your mod that starts with http:// or https://' });
+    if (!Number.isFinite(players) || players < 0 || players > 1000000) return send(res, 400, { error: 'Enter your mod\'s active player count (a number).' });
+    if (description.length < 20) return send(res, 400, { error: 'Please describe your mod a bit more (at least 20 characters).' });
+    let name = cleanText(body.name, 40) || 'Anonymous', userId = 0;
+    if (auth && auth.owner) name = 'Owner';
+    else if (auth && auth.user) { name = auth.user.username; userId = Number(auth.user.id); }
+    if (pubLimited(ip, 'new')) return send(res, 429, { error: 'You have sent a few requests already. Try again in a while.' });
+    const db = await getDb(), now = Date.now();
+    for (let i = 0; i < 5; i++) {
+      const code = newCode('PB-');
+      try {
+        const ins = await db.execute({ sql: 'INSERT INTO publish_requests (code, mod_name, game, link, players, description, name, contact, user_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)', args: [code, modName, game, link, players, description, name, contact, userId, now, now] });
+        return send(res, 201, { code, id: Number(ins.lastInsertRowid) });
+      } catch (e) { if (!/unique|constraint/i.test(String(e && e.message))) throw e; }
+    }
+    return send(res, 500, { error: 'Could not send the request. Try again.' });
+  }
+
+  if (pathname === '/api/publish/lookup' && method === 'POST') {
+    if (pubLimited(ip, 'lookup')) return send(res, 429, { error: 'Too many checks. Wait a few minutes.' });
+    let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+    const codes = (Array.isArray(body.codes) ? body.codes : []).filter((c) => typeof c === 'string' && /^PB-[A-Z2-9]{10}$/.test(c.trim().toUpperCase())).map((c) => c.trim().toUpperCase()).slice(0, 20);
+    const db = await getDb(), out = [];
+    for (const code of [...new Set(codes)]) {
+      const row = (await db.execute({ sql: 'SELECT * FROM publish_requests WHERE code = ?', args: [code] })).rows[0];
+      if (row) out.push(await loadPub(db, row, false));
+    }
+    return send(res, 200, { threads: out });
+  }
+
+  if (pathname === '/api/publish/reply' && method === 'POST') {
+    if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+    if (pubLimited(ip, 'lookup')) return send(res, 429, { error: 'Too many messages. Wait a few minutes.' });
+    let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+    const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+    const message = cleanText(body.body, REQ_MSG_MAX);
+    if (!/^PB-[A-Z2-9]{10}$/.test(code)) return send(res, 400, { error: 'Bad request code.' });
+    if (!message) return send(res, 400, { error: 'Write a message first.' });
+    const auth = await getAuth(req);
+    if (auth && auth.banned) return send(res, 403, { error: banMessage(auth.banned), banned: auth.banned });
+    const db = await getDb();
+    const row = (await db.execute({ sql: 'SELECT * FROM publish_requests WHERE code = ?', args: [code] })).rows[0];
+    if (!row) return send(res, 404, { error: 'No request with that code.' });
+    const n = Number((await db.execute({ sql: 'SELECT COUNT(*) AS n FROM publish_messages WHERE request_id = ?', args: [Number(row.id)] })).rows[0].n);
+    if (n >= REQ_THREAD_MAX) return send(res, 409, { error: 'This conversation is full.' });
+    const now = Date.now();
+    await db.execute({ sql: 'INSERT INTO publish_messages (request_id, sender, body, created_at) VALUES (?,?,?,?)', args: [Number(row.id), 'user', message, now] });
+    await db.execute({ sql: 'UPDATE publish_requests SET unread = 1, updated_at = ? WHERE id = ?', args: [now, Number(row.id)] });
+    return send(res, 200, await loadPub(db, row, false));
+  }
+
+  /* ----- publishing requests (staff side) ----- */
+  const pa = pathname.match(/^\/api\/publish-admin(?:\/(count)|\/(\d+)(\/reply)?)?$/);
+  if (pa) {
+    if (!requirePerm(res, await getAuth(req), 'publish')) return;
+    if (method !== 'GET' && badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+    const db = await getDb();
+    if (pa[1] && method === 'GET') {
+      const n = Number((await db.execute("SELECT COUNT(*) AS n FROM publish_requests WHERE unread = 1 AND status = 'pending'")).rows[0].n);
+      return send(res, 200, { unread: n });
+    }
+    const id = pa[2] ? Number(pa[2]) : null;
+    if (!id && method === 'GET') {
+      const rows = (await db.execute(`SELECT r.*, (SELECT body FROM publish_messages m WHERE m.request_id = r.id ORDER BY m.id DESC LIMIT 1) AS snippet,
+        (SELECT sender FROM publish_messages m WHERE m.request_id = r.id ORDER BY m.id DESC LIMIT 1) AS last_from
+        FROM publish_requests r ORDER BY (r.status = 'pending') DESC, r.updated_at DESC LIMIT 300`)).rows;
+      const items = rows.map((r) => ({
+        id: Number(r.id), modName: r.mod_name, game: r.game, players: Number(r.players), name: r.name, status: r.status,
+        unread: !!Number(r.unread), awaitingReply: r.last_from === 'user' && r.status === 'pending',
+        snippet: String(r.snippet || '').slice(0, 140), updatedAt: Number(r.updated_at), createdAt: Number(r.created_at),
+      }));
+      return send(res, 200, { items, unread: items.filter((i) => i.unread && i.status === 'pending').length, pending: items.filter((i) => i.status === 'pending').length });
+    }
+    if (!id) return send(res, 404, { error: 'Not found.' });
+    const row = (await db.execute({ sql: 'SELECT * FROM publish_requests WHERE id = ?', args: [id] })).rows[0];
+    if (!row) return send(res, 404, { error: 'Not found.' });
+    if (!pa[3] && method === 'GET') {
+      await db.execute({ sql: 'UPDATE publish_requests SET unread = 0 WHERE id = ?', args: [id] });
+      return send(res, 200, await loadPub(db, row, true));
+    }
+    if (pa[3] && method === 'POST') {
+      let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      const message = cleanText(body.body, REQ_MSG_MAX);
+      if (!message) return send(res, 400, { error: 'Write a reply first.' });
+      const now = Date.now();
+      await db.execute({ sql: 'INSERT INTO publish_messages (request_id, sender, body, created_at) VALUES (?,?,?,?)', args: [id, 'dev', message, now] });
+      await db.execute({ sql: 'UPDATE publish_requests SET unread = 0, updated_at = ? WHERE id = ?', args: [now, id] });
+      return send(res, 200, await loadPub(db, row, true));
+    }
+    if (!pa[3] && method === 'PATCH') {          // accept / decline / reopen, with an optional message to the requester and a private staff note
+      let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      const now = Date.now();
+      let status = row.status;
+      if (body.status !== undefined) {
+        if (!PUB_STATUSES.includes(body.status)) return send(res, 400, { error: 'Bad status.' });
+        status = body.status;
+      }
+      const note = body.note !== undefined ? cleanText(body.note, 1000) : String(row.note || '');
+      await db.execute({ sql: 'UPDATE publish_requests SET status = ?, note = ?, unread = 0, updated_at = ? WHERE id = ?', args: [status, note, now, id] });
+      const message = cleanText(body.message, REQ_MSG_MAX);
+      if (message) await db.execute({ sql: 'INSERT INTO publish_messages (request_id, sender, body, created_at) VALUES (?,?,?,?)', args: [id, 'dev', message, now] });
+      const fresh = (await db.execute({ sql: 'SELECT * FROM publish_requests WHERE id = ?', args: [id] })).rows[0];
+      return send(res, 200, await loadPub(db, fresh, true));
+    }
+    if (!pa[3] && method === 'DELETE') {
+      await db.execute({ sql: 'DELETE FROM publish_messages WHERE request_id = ?', args: [id] });
+      await db.execute({ sql: 'DELETE FROM publish_requests WHERE id = ?', args: [id] });
       return send(res, 200, { ok: true });
     }
   }
