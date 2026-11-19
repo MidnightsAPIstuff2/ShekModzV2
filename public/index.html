@@ -156,6 +156,10 @@
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-white text-black font-black flex items-center justify-center font-mono shadow-[0_0_15px_rgba(var(--accent-rgb)/0.6)] shine">S</div>
                     <span class="font-black tracking-wider text-xl chrome-gradient font-mono">standy.best</span>
+                    <button id="publishBtn" onclick="openPublishModal()" title="Ask the staff team to publish your mod" class="ml-2 relative px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2">
+                        <i class="fa-solid fa-paper-plane text-xs"></i> Publish my mod
+                        <span id="pubMineBadge" class="hidden absolute -top-2 -right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(var(--accent-rgb)/0.9)]"></span>
+                    </button>
                 </div>
                 
                 <div class="flex items-center gap-3">
@@ -169,7 +173,11 @@
                         <i class="fa-solid fa-user text-xs"></i> Log in / Sign up
                     </button>
                     
-                    <div id="adminMenuWrap" class="hidden relative">
+                    <a id="staffBtn" href="/manage/" class="hidden relative px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm items-center gap-2" title="Staff management page">
+                        <i class="fa-solid fa-screwdriver-wrench text-xs"></i> Staff
+                        <span id="staffBadge" class="hidden absolute -top-2 -right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(var(--accent-rgb)/0.9)]"></span>
+                    </a>
+                    <div id="adminMenuWrap" class="hidden relative" style="display:none!important">
                         <button id="adminMenuBtn" type="button" onclick="toggleAdminMenu(event)" aria-haspopup="true" aria-expanded="false" class="relative px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Admin tools">
                             <i class="fa-solid fa-screwdriver-wrench text-xs"></i> Admin <i class="fa-solid fa-chevron-down text-[10px]"></i>
                             <span id="adminMenuBadge" class="hidden absolute -top-2 -right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-black text-[10px] font-black flex items-center justify-center shadow-[0_0_10px_rgba(var(--accent-rgb)/0.9)]"></span>
@@ -634,6 +642,57 @@
         </div>
     </div>
 
+    <div id="publishModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="max-w-2xl w-full glass-panel border border-white/30 rounded-2xl relative glow-heavy my-8 overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-white/20 bg-white/5">
+                <div class="flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-white"><i class="fa-solid fa-paper-plane"></i> Publish my mod</div>
+                <button onclick="closePublishModal()" class="text-soft/60 hover:text-white" title="Close"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="grid grid-cols-2 border-b border-white/15 font-mono text-xs uppercase">
+                <button id="pbTabNew" onclick="showPbTab('new')" class="py-2.5 text-white border-b-2 border-white bg-white/5">New request</button>
+                <button id="pbTabMine" onclick="showPbTab('mine')" class="py-2.5 text-soft/60 border-b-2 border-transparent hover:text-white">My requests <span id="pbMineCount" class="text-soft/50"></span></button>
+            </div>
+
+            <form id="pbNew" onsubmit="sendPublish(event)" class="font-mono text-sm">
+                <div class="px-5 py-3 border-b border-white/10 text-xs text-soft/70 leading-relaxed">
+                    We can publish your mod on standy.best and across some modding Discords. It has to meet these standards:
+                    <ul class="list-disc pl-5 mt-1 space-y-0.5 text-soft/60">
+                        <li>Active player count of about 5 or more</li>
+                        <li>Not a mod for Spooky Scary, Big Scary or Primal Powers</li>
+                        <li>The mod menu / mods are good quality</li>
+                        <li>You have an OK reputation, which the staff decide</li>
+                    </ul>
+                </div>
+                <div class="px-5 py-3 space-y-2">
+                    <input id="pbMod" maxlength="80" required placeholder="Mod / mod menu name" class="w-full px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-white text-xs focus:border-white outline-none">
+                    <div class="flex gap-2">
+                        <input id="pbGame" maxlength="80" required placeholder="Game it is for" class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-white text-xs focus:border-white outline-none">
+                        <input id="pbPlayers" type="number" min="0" max="1000000" required placeholder="Active players" class="w-36 px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-white text-xs focus:border-white outline-none">
+                    </div>
+                    <input id="pbLink" maxlength="500" required placeholder="Link to your mod (https://...)" class="w-full px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-white text-xs focus:border-white outline-none">
+                    <textarea id="pbDesc" maxlength="3000" required rows="5" placeholder="Describe your mod: features, how it is made, how many people use it, anything that shows it is good..." class="w-full px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-white text-xs focus:border-white outline-none resize-y"></textarea>
+                    <div class="flex gap-2">
+                        <input id="pbName" maxlength="40" placeholder="Your name / Discord (optional)" class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-white text-xs focus:border-white outline-none">
+                        <input id="pbContact" maxlength="120" placeholder="Contact, e.g. Discord tag (optional)" class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-white text-xs focus:border-white outline-none">
+                    </div>
+                    <input id="pbWebsite" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0">
+                    <div id="pbError" class="hidden text-xs text-red-400"></div>
+                    <button id="pbSend" class="w-full py-2.5 rounded-lg bg-white text-black font-bold text-xs uppercase tracking-wider hover:bg-soft transition">Send to the staff team</button>
+                </div>
+            </form>
+
+            <div id="pbMine" class="hidden font-mono text-sm">
+                <div id="pbMineList" class="max-h-[50vh] overflow-y-auto divide-y divide-white/10"></div>
+                <div id="pbThread" class="hidden"></div>
+                <form onsubmit="addPublishCode(event)" class="flex gap-2 px-5 py-3 border-t border-white/15 bg-white/5">
+                    <input type="text" id="pbCodeInput" maxlength="13" autocomplete="off" placeholder="Have a request code? PB-XXXXXXXXXX" class="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-black/60 border border-white/20 text-white text-xs focus:border-white outline-none">
+                    <button class="px-4 py-1.5 rounded-lg border border-white/40 text-xs uppercase hover:bg-white hover:text-black transition">Add</button>
+                </form>
+                <div id="pbMineError" class="hidden px-5 pb-3 text-xs text-red-400"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="inboxModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
         <div class="max-w-5xl w-full h-[85vh] glass-panel border border-white/30 rounded-2xl relative glow-heavy flex flex-col overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3 border-b border-white/20 bg-white/5">
@@ -776,6 +835,18 @@
             setInterval(() => { if (!document.hidden && loadTickets().length) refreshMine(true); }, 120000);
             const want = Number(new URLSearchParams(location.search).get('request'));   // /?request=<mod id> from a mod's own page
             if (want && posts.some((p) => p.id === want)) { openRequestModal(want); history.replaceState(null, '', location.pathname); }
+            const op = new URLSearchParams(location.search).get('open');     // deep links from the /manage/ page
+            if (op) {
+                history.replaceState(null, '', location.pathname);
+                try {
+                    if (op === 'create' && can('post')) openPostModal();
+                    else if (op === 'announce' && can('announce')) openAnnounceModal();
+                    else if (op === 'inbox' && can('inbox')) openInbox();
+                    else if (op === 'users' && isOwner) openUsersModal();
+                    else if (op === 'pages' && isOwner) openPagesModal();
+                    else if (op === 'publish') openPublishModal('mine');
+                } catch (e) {}
+            }
         });
 
         function applySession(s) {
@@ -832,7 +903,10 @@
             $('createPageBtn').classList.toggle('hidden', !isOwner);
             if (!isOwner) closePagesModal();
             const anyTool = isOwner || can('announce') || can('inbox') || can('theme') || can('beta') || can('staffchat');
-            $('adminMenuWrap').classList.toggle('hidden', !anyTool);
+            $('adminMenuWrap').classList.add('hidden');
+            $('staffBtn').classList.toggle('hidden', !(anyTool || can('publish') || can('post') || can('edit') || can('delete') || can('devlog') || can('sounds')));
+            $('staffBtn').classList.toggle('flex', !$('staffBtn').classList.contains('hidden'));
+            if (can('publish')) pollPublishBadge(); else { pubStaffN = 0; renderStaffBadge(); }
             if (!anyTool) closeAdminMenu();
             const picker = $('themePicker');
             picker.classList.toggle('hidden', !can('theme'));
@@ -1390,11 +1464,12 @@
                     <div>
                         <div class="pt-4 border-t border-white/10 flex justify-between items-center text-xs font-mono mb-4">
                             <span class="text-soft/50">AUTHOR: <strong class="text-white">${esc(post.author)}</strong></span>
+                            <span class="text-soft/50" title="Downloads"><i class="fa-solid fa-download text-[10px]"></i> <strong class="text-white">${Number(post.downloads || 0).toLocaleString()}</strong></span>
                         </div>
                         <div class="flex items-center gap-2">
                             ${post.status === 'Soon' ? `<span class="flex-grow py-2 px-4 rounded-xl border border-dashed border-white/30 bg-black/60 text-soft/50 cursor-not-allowed select-none text-center font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-hourglass-half text-xs"></i> Coming Soon
-                            </span>` : `<a href="${esc(safeUrl(post.fileLink))}" target="_blank" rel="noopener noreferrer" class="flex-grow py-2 px-4 rounded-xl border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 text-center font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                            </span>` : `<a href="/api/go/${post.id}" target="_blank" rel="noopener noreferrer" class="flex-grow py-2 px-4 rounded-xl border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 text-center font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-download text-xs"></i> Get File
                             </a>`}
                             <button onclick="openRequestModal(${post.id})" title="Request a takedown or an update" class="p-2 border border-white/20 bg-black/60 rounded-xl hover:border-white hover:text-white text-soft/60 transition">
@@ -1589,12 +1664,97 @@
 
         document.addEventListener('input', (e) => { if (e.target && e.target.id === 'rqMessage') $('rqCount').textContent = e.target.value.length; });
 
+
+        /* ---------- "Publish my mod" ---------- */
+        const PB_KEY = 'shek_publish';
+        const pbLoad = () => { try { const a = JSON.parse(localStorage.getItem(PB_KEY) || '[]'); return Array.isArray(a) ? a.filter((t) => t && /^PB-[A-Z2-9]{10}$/.test(t.code)) : []; } catch (e) { return []; } };
+        const pbSave = (a) => { try { localStorage.setItem(PB_KEY, JSON.stringify(a.slice(0, 30))); } catch (e) {} };
+        const PB_STATUS = { pending: ['Waiting for review', 'text-yellow-300 border-yellow-300/40'], approved: ['Approved', 'text-green-300 border-green-300/40'], declined: ['Declined', 'text-red-300 border-red-300/40'] };
+        const pbBadge = (st) => { const x = PB_STATUS[st] || PB_STATUS.pending; return `<span class="px-2 py-0.5 rounded-full border text-[10px] uppercase ${x[1]}">${x[0]}</span>`; };
+        let pbThreads = [], pbCur = null;
+        function pbErr(id, msg) { const e = $(id); e.textContent = msg || ''; e.classList.toggle('hidden', !msg); }
+        function openPublishModal(tab) { $('publishModal').classList.remove('hidden'); showPbTab(tab === 'mine' ? 'mine' : 'new'); }
+        function closePublishModal() { $('publishModal').classList.add('hidden'); }
+        function showPbTab(t) {
+            const mine = t === 'mine';
+            $('pbNew').classList.toggle('hidden', mine); $('pbMine').classList.toggle('hidden', !mine);
+            $('pbTabNew').className = 'py-2.5 border-b-2 ' + (mine ? 'text-soft/60 border-transparent hover:text-white' : 'text-white border-white bg-white/5');
+            $('pbTabMine').className = 'py-2.5 border-b-2 ' + (mine ? 'text-white border-white bg-white/5' : 'text-soft/60 border-transparent hover:text-white');
+            if (mine) { pbCur = null; refreshPublish(); }
+        }
+        async function sendPublish(e) {
+            e.preventDefault(); pbErr('pbError', '');
+            const btn = $('pbSend'); btn.disabled = true;
+            try {
+                const d = await api('/api/publish', { method: 'POST', body: JSON.stringify({
+                    modName: $('pbMod').value, game: $('pbGame').value, players: $('pbPlayers').value, link: $('pbLink').value,
+                    description: $('pbDesc').value, name: $('pbName').value, contact: $('pbContact').value, website: $('pbWebsite').value }) });
+                const t = pbLoad(); t.unshift({ code: d.code, seen: 0, title: $('pbMod').value.slice(0, 80) }); pbSave(t);
+                ['pbMod','pbGame','pbPlayers','pbLink','pbDesc','pbContact'].forEach((i) => { $(i).value = ''; });
+                showPbTab('mine');
+                alert('Sent! Your request code is ' + d.code + '. It is saved here under "My requests" so you can read the staff reply.');
+            } catch (err) { pbErr('pbError', err.message); }
+            btn.disabled = false;
+        }
+        async function pbFetch(codes) { return codes.length ? (await api('/api/publish/lookup', { method: 'POST', body: JSON.stringify({ codes }) })).threads : []; }
+        async function refreshPublish(quiet) {
+            const mine = pbLoad();
+            $('pbMineCount').textContent = mine.length ? '(' + mine.length + ')' : '';
+            try { pbThreads = await pbFetch(mine.map((t) => t.code)); } catch (e) { if (!quiet) pbErr('pbMineError', e.message); return; }
+            const unseen = pbThreads.filter((t) => { const s = mine.find((m) => m.code === t.code); return t.messages.filter((x) => x.from === 'dev').length > (s ? s.seen : 0); }).length;
+            const b = $('pubMineBadge'); b.textContent = unseen; b.classList.toggle('hidden', !unseen);
+            if (!$('publishModal').classList.contains('hidden') && !pbCur) renderPbList();
+        }
+        function renderPbList() {
+            $('pbThread').classList.add('hidden'); $('pbMineList').classList.remove('hidden');
+            $('pbMineList').innerHTML = pbThreads.length ? pbThreads.map((t) => `<button onclick="openPbThread('${t.code}')" class="w-full text-left px-5 py-3 hover:bg-white/5 transition">
+                <div class="flex items-center justify-between gap-2"><strong class="text-white text-xs truncate">${esc(t.modName)}</strong>${pbBadge(t.status)}</div>
+                <div class="text-[10px] text-soft/50 mt-1">${esc(t.game)} &middot; ${esc(t.code)} &middot; ${t.messages.length} message${t.messages.length === 1 ? '' : 's'}</div></button>`).join('')
+                : '<div class="px-5 py-8 text-center text-xs text-soft/50">No requests yet. Send one from the "New request" tab.</div>';
+        }
+        function openPbThread(code) {
+            const t = pbThreads.find((x) => x.code === code); if (!t) return; pbCur = t;
+            const mine = pbLoad(), m = mine.find((x) => x.code === code); if (m) { m.seen = t.messages.filter((x) => x.from === 'dev').length; pbSave(mine); }
+            $('pbMineList').classList.add('hidden'); $('pbThread').classList.remove('hidden');
+            $('pbThread').innerHTML = `<div class="px-5 py-3 border-b border-white/10 flex items-center justify-between gap-2">
+                <button onclick="pbCur=null;renderPbList()" class="text-xs text-soft/60 hover:text-white"><i class="fa-solid fa-arrow-left"></i> Back</button>
+                <strong class="text-white text-xs truncate">${esc(t.modName)}</strong>${pbBadge(t.status)}</div>
+                <div class="px-5 py-3 max-h-[40vh] overflow-y-auto space-y-2">${t.messages.map((x) => `<div class="${x.from === 'dev' ? 'bg-white/10 border-white/30' : 'bg-black/60 border-white/15'} border rounded-lg px-3 py-2 text-xs whitespace-pre-wrap break-words"><div class="text-[10px] text-soft/50 mb-1">${x.from === 'dev' ? 'Staff' : 'You'} &middot; ${esc(fmtTime(x.time))}</div>${esc(x.body)}</div>`).join('')}</div>
+                <form onsubmit="pbReply(event)" class="flex gap-2 px-5 py-3 border-t border-white/15 bg-white/5"><input id="pbReplyBox" maxlength="3000" required placeholder="Reply to the staff..." class="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-black/60 border border-white/20 text-white text-xs focus:border-white outline-none"><button class="px-4 py-1.5 rounded-lg border border-white/40 text-xs uppercase hover:bg-white hover:text-black transition">Send</button></form>`;
+            refreshPublish(true);
+        }
+        async function pbReply(e) {
+            e.preventDefault(); const box = $('pbReplyBox'); if (!pbCur) return;
+            try { const t = await api('/api/publish/reply', { method: 'POST', body: JSON.stringify({ code: pbCur.code, body: box.value }) }); pbThreads = pbThreads.map((x) => x.code === t.code ? t : x); openPbThread(t.code); }
+            catch (err) { pbErr('pbMineError', err.message); }
+        }
+        async function addPublishCode(e) {
+            e.preventDefault(); pbErr('pbMineError', '');
+            const code = $('pbCodeInput').value.trim().toUpperCase();
+            if (!/^PB-[A-Z2-9]{10}$/.test(code)) return pbErr('pbMineError', 'That does not look like a request code.');
+            try {
+                const f = await pbFetch([code]); if (!f.length) return pbErr('pbMineError', 'No request found with that code.');
+                const t = pbLoad().filter((x) => x.code !== code); t.unshift({ code, seen: 0, title: f[0].modName }); pbSave(t); $('pbCodeInput').value = ''; await refreshPublish();
+            } catch (err) { pbErr('pbMineError', err.message); }
+        }
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePublishModal(); });
+        setTimeout(() => refreshPublish(true), 1500);
+        setInterval(() => { if (!document.hidden && pbLoad().length) refreshPublish(true); }, 120000);
+
         /* ---------- developer inbox ---------- */
         let inboxItems = [], inboxFilter = 'open', inboxCur = null;
         function setInboxBadge(n) {
             const b = $('inboxBadge'); b.textContent = n; b.classList.toggle('hidden', !n);
             const m = $('adminMenuBadge'); m.textContent = n; m.classList.toggle('hidden', !n);
+            inboxN = n; renderStaffBadge();
         }
+        let inboxN = 0, pubStaffN = 0;
+        function renderStaffBadge() { const b = $('staffBadge'), t = inboxN + pubStaffN; b.textContent = t; b.classList.toggle('hidden', !t); }
+        async function pollPublishBadge() {
+            if (!can('publish')) return;
+            try { const d = await api('/api/publish-admin/count'); pubStaffN = d.unread; renderStaffBadge(); } catch (e) {}
+        }
+        setInterval(() => { if (!document.hidden) pollPublishBadge(); }, 60000);
         async function pollInboxBadge() {
             if (!can('inbox')) return;
             try { const d = await api('/api/inbox'); inboxItems = d.items; setInboxBadge(d.unread); if (!$('inboxModal').classList.contains('hidden')) renderInboxList(); } catch (e) {}
