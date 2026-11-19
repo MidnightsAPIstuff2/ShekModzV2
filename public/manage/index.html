@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff | standy.best</title>
+    <style>:root{--accent:#e4e4e7;--accent-rgb:228 228 231;--accent-mid:#a1a1aa;--accent-dark:#52525b;--soft-rgb:212 212 216;--bg:#050506;--bg2:#0a0a0b}</style>
+    <script src="/theme.js"></script>
+    <script src="/announce.js"></script>
+    <script src="/fx.js" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; }
+        .home { z-index: 40; position: fixed; top: 16px; left: 16px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border: 1px solid rgba(var(--accent-rgb)/0.4); border-radius: 10px; background: #000; color: var(--accent); text-decoration: none; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; transition: all .25s; }
+        .home:hover { background: var(--accent); color: #000; }
+        .wrap { position: relative; z-index: 10; width: 100%; max-width: 1000px; margin: 0 auto; padding: 84px 16px 60px; }
+        h1 { margin: 0 0 6px; text-align: center; font-size: clamp(24px, 6vw, 38px); text-transform: uppercase; letter-spacing: .12em; text-shadow: 0 0 12px rgba(var(--accent-rgb)/0.7); }
+        .sub { margin: 0 0 22px; text-align: center; font-size: 12px; opacity: .6; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; justify-content: center; }
+        .tab { position: relative; padding: 9px 16px; border-radius: 10px; border: 1px solid rgba(var(--accent-rgb)/0.3); background: #000; color: var(--accent); font: 700 12px 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: .08em; cursor: pointer; }
+        .tab.on, .tab:hover { background: var(--accent); color: #000; }
+        .n { display: inline-block; margin-left: 6px; min-width: 18px; padding: 0 5px; border-radius: 9px; background: #fff; color: #000; font-size: 10px; line-height: 18px; text-align: center; }
+        .tab.on .n { background: #000; color: #fff; }
+        .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+        .tile { display: block; padding: 18px; border: 1px solid rgba(var(--accent-rgb)/0.3); border-radius: 14px; background: rgba(10,10,12,.88); color: var(--accent); text-decoration: none; cursor: pointer; text-align: left; font-family: inherit; transition: all .2s; position: relative; }
+        .tile:hover { border-color: var(--accent); box-shadow: 0 0 22px rgba(var(--accent-rgb)/0.3); }
+        .tile i { font-size: 18px; margin-bottom: 10px; display: block; }
+        .tile b { display: block; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+        .tile span.d { display: block; margin-top: 4px; font-size: 11px; opacity: .6; line-height: 1.5; }
+        .tile .n { position: absolute; top: 12px; right: 12px; }
+        .panel { padding: 16px; border: 1px solid rgba(var(--accent-rgb)/0.3); border-radius: 14px; background: rgba(10,10,12,.88); }
+        .themes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .themes button { padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(var(--accent-rgb)/0.3); background: #000; color: var(--accent); font: 12px 'JetBrains Mono', monospace; cursor: pointer; }
+        .themes button.active { background: var(--accent); color: #000; }
+        .split { display: grid; grid-template-columns: 300px 1fr; gap: 14px; }
+        @media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+        .filters { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+        .filters button { padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(var(--accent-rgb)/0.25); background: #000; color: var(--accent); font: 11px 'JetBrains Mono', monospace; cursor: pointer; text-transform: uppercase; }
+        .filters button.on { background: var(--accent); color: #000; }
+        .list { max-height: 70vh; overflow-y: auto; }
+        .item { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; border-bottom: 1px solid rgba(var(--accent-rgb)/0.12); background: transparent; color: var(--accent); font: 12px 'JetBrains Mono', monospace; cursor: pointer; }
+        .item:hover, .item.cur { background: rgba(var(--accent-rgb)/0.1); }
+        .item .t { display: flex; justify-content: space-between; gap: 6px; font-weight: 700; }
+        .item .m { margin-top: 3px; font-size: 10px; opacity: .55; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #fff; margin-right: 6px; }
+        .pill { padding: 1px 8px; border-radius: 99px; border: 1px solid; font-size: 10px; text-transform: uppercase; white-space: nowrap; }
+        .pill.pending { color: #fde047; border-color: rgba(253,224,71,.4); } .pill.approved { color: #86efac; border-color: rgba(134,239,172,.4); } .pill.declined { color: #fca5a5; border-color: rgba(252,165,165,.4); }
+        .kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; font-size: 12px; margin: 12px 0; }
+        .kv dt { opacity: .55; } .kv dd { margin: 0; overflow-wrap: anywhere; }
+        .kv a { color: var(--accent); }
+        .warn { color: #fca5a5; }
+        .msgs { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; max-height: 36vh; overflow-y: auto; }
+        .msg { padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(var(--accent-rgb)/0.2); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; background: #000; }
+        .msg.dev { background: rgba(var(--accent-rgb)/0.1); border-color: rgba(var(--accent-rgb)/0.4); }
+        .msg small { display: block; opacity: .5; font-size: 10px; margin-bottom: 3px; }
+        .field { width: 100%; padding: 9px 11px; margin-bottom: 8px; border-radius: 10px; border: 1px solid rgba(var(--accent-rgb)/0.35); background: #000; color: #fff; font: 12px 'JetBrains Mono', monospace; }
+        .field:focus { outline: none; border-color: var(--accent); }
+        textarea.field { min-height: 70px; resize: vertical; }
+        .btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 10px; cursor: pointer; border: 1px solid rgba(var(--accent-rgb)/0.5); background: #000; color: var(--accent); font: 700 11px 'JetBrains Mono', monospace; letter-spacing: .06em; text-transform: uppercase; }
+        .btn:hover { background: var(--accent); color: #000; }
+        .btn.ok { border-color: rgba(134,239,172,.5); color: #86efac; } .btn.ok:hover { background: #86efac; color: #000; }
+        .btn.no { border-color: rgba(248,113,113,.5); color: #f87171; } .btn.no:hover { background: #f87171; color: #000; }
+        .btn:disabled { opacity: .4; cursor: default; }
+        .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+        .empty { padding: 36px 10px; text-align: center; font-size: 12px; opacity: .55; }
+        .err { margin-top: 8px; color: #f87171; font-size: 12px; }
+        .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; opacity: .65; margin: 10px 0 4px; display: block; }
+        [hidden] { display: none !important; }
+    </style>
+    <link href="/shine.css" rel="stylesheet">
+</head>
+<body>
+    <a class="home" href="/"><i class="fa-solid fa-house"></i> Home</a>
+    <main class="wrap">
+        <h1>Staff</h1>
+        <p class="sub" id="who">Loading...</p>
+
+        <div id="denied" class="panel empty" hidden>This page is for staff only. <a href="/" style="color:inherit">Go back and log in.</a></div>
+
+        <div id="app" hidden>
+            <div class="tabs">
+                <button class="tab on" id="tabHub" type="button">Tools</button>
+                <button class="tab" id="tabPub" type="button" hidden>Publishing requests <span class="n" id="pubN" hidden></span></button>
+            </div>
+
+            <section id="hub">
+                <div class="grid" id="tiles"></div>
+                <div class="panel" id="themeBox" style="margin-top:14px" hidden>
+                    <b style="font-size:12px;text-transform:uppercase">Site theme</b> <span style="font-size:11px;opacity:.6">everyone sees the one you pick</span>
+                    <div class="themes" id="themes"></div>
+                </div>
+            </section>
+
+            <section id="pub" hidden>
+                <div class="split">
+                    <div class="panel">
+                        <div class="filters" id="filters"></div>
+                        <div class="list" id="plist"></div>
+                    </div>
+                    <div class="panel" id="pdetail"><div class="empty">Select a request to read it.</div></div>
+                </div>
+            </section>
+        </div>
+    </main>
+<script>
+(function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var perms = new Set(), owner = false, items = [], filter = 'pending', cur = null, inboxN = 0;
+    function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
+    function fmt(ms) { return new Date(ms).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+    async function api(path, opts) {
+        opts = opts || {};
+        var r = await fetch(path, Object.assign({ credentials: 'same-origin', headers: opts.body ? { 'Content-Type': 'application/json' } : {} }, opts));
+        var d = await r.json().catch(function () { return {}; });
+        if (!r.ok) throw Object.assign(new Error(d.error || 'Request failed'), { status: r.status });
+        return d;
+    }
+    var can = function (p) { return perms.has(p); };
+
+    var TILES = [
+        { perm: 'post', icon: 'plus', title: 'Post a mod', desc: 'Create a new mod post.', href: '/?open=create' },
+        { perm: 'announce', icon: 'bullhorn', title: 'Announce', desc: 'Send a site-wide announcement.', href: '/?open=announce' },
+        { perm: 'inbox', icon: 'inbox', title: 'Takedown inbox', desc: 'Takedown and update requests.', href: '/?open=inbox', badge: 'inbox' },
+        { perm: 'devlog', icon: 'file-lines', title: 'Devlogs', desc: 'Write and edit devlogs.', href: '/devlogs/' },
+        { perm: 'sounds', icon: 'volume-high', title: 'Sounds', desc: 'Upload sounds.', href: '/sounds/' },
+        { perm: 'beta', icon: 'flask', title: 'Beta tests', desc: 'Private test APKs.', href: '/beta/' },
+        { perm: 'staffchat', icon: 'terminal', title: 'Staff chat', desc: 'Terminal chat for the team.', href: '/staffchat/' },
+        { owner: true, icon: 'users', title: 'Users', desc: 'Roles, permissions, bans.', href: '/?open=users' },
+        { owner: true, icon: 'file-code', title: 'Create page', desc: 'Custom pages.', href: '/?open=pages' }
+    ];
+    function renderTiles() {
+        var box = $('tiles'); box.textContent = '';
+        TILES.forEach(function (t) {
+            if (t.owner ? !owner : !can(t.perm)) return;
+            var a = el('a', 'tile'); a.href = t.href;
+            var i = el('i', 'fa-solid fa-' + t.icon); a.appendChild(i);
+            a.appendChild(el('b', '', t.title)); a.appendChild(el('span', 'd', t.desc));
+            if (t.badge === 'inbox' && inboxN) a.appendChild(el('span', 'n', inboxN));
+            box.appendChild(a);
+        });
+        var p = el('a', 'tile'); p.href = '#'; p.style.display = can('publish') ? '' : 'none';
+        p.appendChild(el('i', 'fa-solid fa-paper-plane')); p.appendChild(el('b', '', 'Publishing requests')); p.appendChild(el('span', 'd', 'Read, accept, decline or reply to "publish my mod" requests.'));
+        p.onclick = function (e) { e.preventDefault(); show('pub'); };
+        box.insertBefore(p, box.firstChild);
+    }
+    function renderThemes() {
+        var box = $('themes'); box.textContent = '';
+        var list = [['default', '⚫ Standy'], ['summer', '☀️ Summer'], ['fall', '🎃 Fall'], ['winter', '❄️ Winter'], ['spring', '🌸 Spring']];
+        var curT = window.ShekTheme && ShekTheme.current && ShekTheme.current();
+        list.forEach(function (t) {
+            var b = el('button', t[0] === curT ? 'active' : '', t[1]); b.type = 'button'; b.dataset.t = t[0];
+            b.onclick = async function () {
+                try { await api('/api/theme', { method: 'PUT', body: JSON.stringify({ theme: t[0] }) }); if (window.ShekTheme) ShekTheme.apply(t[0]); renderThemes(); } catch (e) { alert(e.message); }
+            };
+            box.appendChild(b);
+        });
+    }
+    function show(which) {
+        $('hub').hidden = which !== 'hub'; $('pub').hidden = which !== 'pub';
+        $('tabHub').classList.toggle('on', which === 'hub'); $('tabPub').classList.toggle('on', which === 'pub');
+        if (which === 'pub') loadList();
+        history.replaceState(null, '', which === 'pub' ? '#publishing' : location.pathname);
+    }
+    $('tabHub').onclick = function () { show('hub'); };
+    $('tabPub').onclick = function () { show('pub'); };
+
+    /* ---- publishing requests ---- */
+    var FILTERS = [['pending', 'Pending'], ['approved', 'Approved'], ['declined', 'Declined'], ['all', 'All']];
+    function renderFilters() {
+        var box = $('filters'); box.textContent = '';
+        FILTERS.forEach(function (f) {
+            var n = f[0] === 'all' ? items.length : items.filter(function (i) { return i.status === f[0]; }).length;
+            var b = el('button', filter === f[0] ? 'on' : '', f[1] + ' (' + n + ')'); b.type = 'button';
+            b.onclick = function () { filter = f[0]; renderFilters(); renderList(); };
+            box.appendChild(b);
+        });
+    }
+    function renderList() {
+        var box = $('plist'); box.textContent = '';
+        var rows = items.filter(function (i) { return filter === 'all' || i.status === filter; });
+        if (!rows.length) { box.appendChild(el('div', 'empty', 'Nothing here.')); return; }
+        rows.forEach(function (i) {
+            var b = el('button', 'item' + (cur && cur.id === i.id ? ' cur' : '')); b.type = 'button';
+            var t = el('div', 't'); var nm = el('span'); if (i.unread) nm.appendChild(el('span', 'dot')); nm.appendChild(document.createTextNode(i.modName));
+            t.appendChild(nm); t.appendChild(el('span', 'pill ' + i.status, i.status)); b.appendChild(t);
+            b.appendChild(el('div', 'm', i.game + ' · ' + i.players + ' players · ' + i.name + (i.awaitingReply ? ' · awaiting you' : '')));
+            b.appendChild(el('div', 'm', fmt(i.updatedAt)));
+            b.onclick = function () { openReq(i.id); };
+            box.appendChild(b);
+        });
+    }
+    async function loadList() {
+        try {
+            var d = await api('/api/publish-admin'); items = d.items;
+            $('pubN').textContent = d.unread; $('pubN').hidden = !d.unread;
+            renderFilters(); renderList();
+        } catch (e) { $('plist').textContent = e.message; }
+    }
+    async function openReq(id) {
+        try { cur = await api('/api/publish-admin/' + id); renderReq(); renderList(); loadListQuiet(); } catch (e) { alert(e.message); }
+    }
+    async function loadListQuiet() { try { var d = await api('/api/publish-admin'); items = d.items; $('pubN').textContent = d.unread; $('pubN').hidden = !d.unread; renderFilters(); renderList(); } catch (e) {} }
+    function kv(dl, k, v) { dl.appendChild(el('dt', '', k)); var dd = el('dd'); if (v instanceof Node) dd.appendChild(v); else dd.textContent = v; dl.appendChild(dd); }
+    function renderReq() {
+        var r = cur, box = $('pdetail'); box.textContent = '';
+        var head = el('div'); head.style.cssText = 'display:flex;justify-content:space-between;gap:8px;align-items:center';
+        head.appendChild(el('b', '', r.modName)); head.appendChild(el('span', 'pill ' + r.status, r.status)); box.appendChild(head);
+        var dl = el('dl', 'kv');
+        kv(dl, 'Game', r.game);
+        var pl = el('span', r.players < 5 ? 'warn' : '', r.players + (r.players < 5 ? ' (below the 5 minimum)' : '')); kv(dl, 'Active players', pl);
+        var a = el('a', '', r.link); a.href = /^https?:\/\//i.test(r.link) ? r.link : '#'; a.target = '_blank'; a.rel = 'noopener noreferrer nofollow'; kv(dl, 'Mod link', a);
+        kv(dl, 'From', r.name + (r.userId ? ' (account #' + r.userId + ')' : ' (no account)'));
+        kv(dl, 'Contact', r.contact || '—'); kv(dl, 'Sent', fmt(r.createdAt)); kv(dl, 'Code', r.code);
+        box.appendChild(dl);
+        box.appendChild(el('span', 'lbl', 'Description from the requester'));
+        var ds = el('div', 'msg', r.description); box.appendChild(ds);
+        box.appendChild(el('span', 'lbl', 'Conversation'));
+        var ms = el('div', 'msgs');
+        if (!r.messages.length) ms.appendChild(el('div', 'empty', 'No messages yet.'));
+        r.messages.forEach(function (m) { var d = el('div', 'msg' + (m.from === 'dev' ? ' dev' : '')); d.appendChild(el('small', '', (m.from === 'dev' ? 'Staff' : r.name) + ' · ' + fmt(m.time))); d.appendChild(document.createTextNode(m.body)); ms.appendChild(d); });
+        box.appendChild(ms);
+        var ta = el('textarea', 'field'); ta.id = 'msgBox'; ta.maxLength = 3000; ta.placeholder = 'Write a message to the requester (sent with Reply, Accept or Decline)...'; box.appendChild(ta);
+        var acts = el('div', 'acts');
+        function btn(cls, icon, label, fn) { var b = el('button', 'btn ' + cls); b.type = 'button'; b.appendChild(el('i', 'fa-solid fa-' + icon)); b.appendChild(document.createTextNode(' ' + label)); b.onclick = fn; acts.appendChild(b); return b; }
+        btn('', 'reply', 'Reply', function () { var t = ta.value.trim(); if (!t) return err('Write a reply first.'); act('reply', t); });
+        if (r.status !== 'approved') btn('ok', 'check', 'Accept', function () { act('approved', ta.value.trim()); });
+        if (r.status !== 'declined') btn('no', 'xmark', 'Decline', function () { act('declined', ta.value.trim()); });
+        if (r.status !== 'pending') btn('', 'rotate-left', 'Reopen', function () { act('pending', ta.value.trim()); });
+        btn('no', 'trash', 'Delete', async function () { if (!confirm('Delete this request permanently?')) return; try { await api('/api/publish-admin/' + r.id, { method: 'DELETE' }); cur = null; $('pdetail').innerHTML = '<div class="empty">Deleted.</div>'; loadListQuiet(); } catch (e) { err(e.message); } });
+        box.appendChild(acts);
+        box.appendChild(el('span', 'lbl', 'Private staff note (reputation, etc. — the requester never sees this)'));
+        var nt = el('textarea', 'field'); nt.id = 'noteBox'; nt.maxLength = 1000; nt.value = r.note || ''; box.appendChild(nt);
+        var sv = el('button', 'btn'); sv.type = 'button'; sv.textContent = 'Save note';
+        sv.onclick = async function () { try { cur = await api('/api/publish-admin/' + r.id, { method: 'PATCH', body: JSON.stringify({ note: nt.value }) }); sv.textContent = 'Saved'; setTimeout(function () { sv.textContent = 'Save note'; }, 1200); } catch (e) { err(e.message); } };
+        box.appendChild(sv);
+        var e = el('div', 'err'); e.id = 'perr'; e.hidden = true; box.appendChild(e);
+    }
+    function err(m) { var e = $('perr'); if (e) { e.textContent = m; e.hidden = !m; } }
+    async function act(kind, text) {
+        try {
+            if (kind === 'reply') cur = await api('/api/publish-admin/' + cur.id + '/reply', { method: 'POST', body: JSON.stringify({ body: text }) });
+            else cur = await api('/api/publish-admin/' + cur.id, { method: 'PATCH', body: JSON.stringify({ status: kind, message: text }) });
+            renderReq(); loadListQuiet();
+        } catch (e) { err(e.message); }
+    }
+
+    async function init() {
+        var s;
+        try { s = await api('/api/session'); } catch (e) { s = {}; }
+        owner = !!s.owner; perms = new Set(s.permissions || []);
+        var any = owner || perms.size > 0 && ['post','edit','delete','announce','theme','inbox','devlog','sounds','beta','staffchat','publish'].some(function (p) { return perms.has(p); });
+        if (!any) { $('denied').hidden = false; $('who').textContent = ''; return; }
+        $('who').textContent = owner ? 'Signed in as OWNER' : 'Signed in as ' + (s.user ? s.user.username + ' · ' + s.user.roleLabel : '');
+        $('app').hidden = false;
+        $('tabPub').hidden = !can('publish');
+        $('themeBox').hidden = !can('theme');
+        if (can('inbox')) { try { var d = await api('/api/inbox'); inboxN = d.unread; } catch (e) {} }
+        if (can('publish')) { try { var c = await api('/api/publish-admin/count'); $('pubN').textContent = c.unread; $('pubN').hidden = !c.unread; } catch (e) {} }
+        renderTiles(); renderThemes();
+        document.addEventListener('themechange', renderThemes);
+        if (location.hash === '#publishing' && can('publish')) show('pub');
+        setInterval(function () { if (!document.hidden && can('publish')) loadListQuiet(); }, 60000);
+    }
+    init();
+})();
+</script>
+</body>
+</html>
