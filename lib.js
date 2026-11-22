@@ -32,6 +32,7 @@ const PERMISSIONS = [
   { key: 'beta', label: 'Beta page (upload & download test APKs)' },
   { key: 'staffchat', label: 'Staff chat (terminal chat for the team)' },
   { key: 'publish', label: 'Publishing requests (read, accept, decline, reply)' },
+  { key: 'rules', label: 'Edit the rules / TOS page (the owner approves changes)' },
 ];
 const PERM_KEYS = PERMISSIONS.map((p) => p.key);
 const ROLES = {
@@ -433,6 +434,51 @@ const BLOCKED_GAMES = ['spooky scary', 'big scary', 'sig bcary', 'primal powers'
 const normGame = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const isBlockedGame = (v) => { const n = normGame(v); return !!n && BLOCKED_GAMES.some((g) => n.includes(normGame(g))); };
 const PUB_STATUSES = ['pending', 'approved', 'declined'];
+const RULES_MAX = 20000;
+const DEFAULT_RULES = `# Rules & Terms of Service
+Last updated by the standy.best team. By using standy.best you agree to the points below.
+
+# The basics
+- Be decent to other people. No harassment, hate or threats.
+- Do not post anything illegal, and nothing that sexualizes minors. That gets you banned and reported.
+- No spam, scams, fake accounts or impersonating staff.
+- Do not try to break, overload or hack the site.
+
+# Mods and downloads
+- Only post or request mods you made, or that you have permission to share.
+- Mods must not contain malware, stealers, loggers or anything meant to harm players or their devices.
+- Staff may mark a mod as Not Working, Patched or Soon, or remove it, at any time.
+- Mods are used at your own risk. They can break or get you banned in a game. We are not responsible for that.
+- Takedown requests are welcome: use the envelope button on a mod.
+
+# Publish my mod
+- Sending a request does not guarantee it gets published.
+- Standards: active player count of about 5 or more, not a mod for Spooky Scary, Big Scary or Primal Powers, a good quality mod menu / mods, and an OK reputation as decided by staff.
+- Staff decisions on publishing are final, but you can reply to the request and ask.
+
+# Accounts and staff
+- You are responsible for your account and password.
+- Staff can warn, mute, ban or remove content to keep the site safe.
+- Bans can be appealed by contacting the staff team.
+
+# Privacy
+- We keep what the site needs to run: your account name, your posts and requests, and a little technical data to stop abuse.
+- We do not sell your data.
+
+# Changes
+- These rules can change. Keeping using the site means you accept the current version.
+`;
+const rulesLive = async (db) => {
+  const r = (await db.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['rules_live'] })).rows[0];
+  if (r) { try { const v = JSON.parse(r.value); if (v && typeof v.text === 'string') return v; } catch { /* fall through */ } }
+  return { text: DEFAULT_RULES, updatedAt: 0, by: '' };
+};
+const rulesPending = async (db) => {
+  const r = (await db.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['rules_pending'] })).rows[0];
+  if (r) { try { const v = JSON.parse(r.value); if (v && typeof v.text === 'string') return v; } catch { /* none */ } }
+  return null;
+};
+
 const dlSeen = new Map();   // ip+mod -> last counted time, so refreshing can't inflate a download count
 const pubRate = new Map();
 function pubLimited(ip, kind) {
@@ -1424,6 +1470,62 @@ async function handleApi(req, res) {
       await db.execute({ sql: 'DELETE FROM publish_messages WHERE request_id = ?', args: [id] });
       await db.execute({ sql: 'DELETE FROM publish_requests WHERE id = ?', args: [id] });
       return send(res, 200, { ok: true });
+    }
+  }
+
+
+  /* ----- rules / TOS: anyone reads; "rules" holders propose edits; the owner approves them ----- */
+  if (pathname === '/api/rules' && method === 'GET') {
+    const db = await getDb();
+    const live = await rulesLive(db);
+    return send(res, 200, { text: live.text, updatedAt: live.updatedAt || 0, by: live.by || '' });
+  }
+  if (pathname.startsWith('/api/rules/')) {
+    const auth = await getAuth(req);
+    if (!requirePerm(res, auth, 'rules')) return;
+    if (method !== 'GET' && badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+    const db = await getDb();
+    const who = auth.owner ? 'Owner' : auth.user.username;
+    if (pathname === '/api/rules/pending' && method === 'GET') {
+      const pending = await rulesPending(db);
+      const rej = (await db.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['rules_rejected'] })).rows[0];
+      let rejected = null; if (rej) { try { rejected = JSON.parse(rej.value); } catch { /* ignore */ } }
+      return send(res, 200, { pending, rejected: pending ? null : rejected, isOwner: !!auth.owner });
+    }
+    if (pathname === '/api/rules/propose' && method === 'POST') {
+      let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      const text = typeof body.text === 'string' ? body.text.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '') : '';
+      if (text.trim().length < 20) return send(res, 400, { error: 'The rules are too short.' });
+      if (text.length > RULES_MAX) return send(res, 400, { error: `Too long (max ${RULES_MAX} characters).` });
+      const now = Date.now();
+      if (auth.owner) {                                   // the owner's own edits go live straight away
+        await db.execute({ sql: 'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', args: ['rules_live', JSON.stringify({ text, updatedAt: now, by: who })] });
+        await db.execute({ sql: 'DELETE FROM settings WHERE key IN (?, ?)', args: ['rules_pending', 'rules_rejected'] });
+        return send(res, 200, { published: true });
+      }
+      await db.execute({ sql: 'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', args: ['rules_pending', JSON.stringify({ text, by: who, at: now })] });
+      await db.execute({ sql: 'DELETE FROM settings WHERE key = ?', args: ['rules_rejected'] });
+      return send(res, 200, { published: false, pending: { text, by: who, at: now } });
+    }
+    if (pathname === '/api/rules/review' && method === 'POST') {
+      if (!requireOwner(res, auth)) return;
+      let body; try { body = await readJson(req); } catch { return send(res, 400, { error: 'Bad request.' }); }
+      const pending = await rulesPending(db);
+      if (!pending) return send(res, 404, { error: 'Nothing is waiting for review.' });
+      if (Number(body.at) !== Number(pending.at)) return send(res, 409, { error: 'The proposal changed. Reload and review the new one.' });
+      const now = Date.now();
+      if (body.action === 'approve') {
+        await db.execute({ sql: 'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', args: ['rules_live', JSON.stringify({ text: pending.text, updatedAt: now, by: pending.by + ' (approved by owner)' })] });
+        await db.execute({ sql: 'DELETE FROM settings WHERE key = ?', args: ['rules_pending'] });
+        return send(res, 200, { ok: true, approved: true });
+      }
+      if (body.action === 'reject') {
+        const note = cleanText(body.note, 300);
+        await db.execute({ sql: 'DELETE FROM settings WHERE key = ?', args: ['rules_pending'] });
+        await db.execute({ sql: 'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', args: ['rules_rejected', JSON.stringify({ by: pending.by, at: now, note })] });
+        return send(res, 200, { ok: true, approved: false });
+      }
+      return send(res, 400, { error: 'Bad action.' });
     }
   }
 
