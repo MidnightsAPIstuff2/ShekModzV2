@@ -221,7 +221,11 @@
                         <i class="fa-solid fa-file-lines text-xs"></i> Devlogs
                     </a>
 
-                    <a href="/staff/" class="px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Who makes the mods">
+<a href="/rules/" class="px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Rules &amp; terms of service">
+                        <i class="fa-solid fa-scale-balanced text-xs"></i> Rules
+                    </a>
+
+                                        <a href="/staff/" class="px-4 py-1.5 rounded-lg border border-white/30 bg-black hover:bg-white hover:text-black transition-all duration-300 font-mono text-xs uppercase tracking-wider font-bold glow-box-sm flex items-center gap-2" title="Who makes the mods">
                         <i class="fa-solid fa-user-group text-xs"></i> Staff Team
                     </a>
 
@@ -658,7 +662,7 @@
                     We can publish your mod on standy.best and across some modding Discords. It has to meet these standards:
                     <ul class="list-disc pl-5 mt-1 space-y-0.5 text-soft/60">
                         <li>Active player count of about 5 or more</li>
-                        <li>Not a mod for Spooky Scary, Sig Bcary or Primal Powers</li>
+                        <li>Not a mod for Spooky Scary, Big Scary or Primal Powers</li>
                         <li>The mod menu / mods are good quality</li>
                         <li>You have an OK reputation, which the staff decide</li>
                     </ul>
@@ -907,6 +911,7 @@
             $('staffBtn').classList.toggle('hidden', !(anyTool || can('publish') || can('post') || can('edit') || can('delete') || can('devlog') || can('sounds')));
             $('staffBtn').classList.toggle('flex', !$('staffBtn').classList.contains('hidden'));
             if (can('publish')) pollPublishBadge(); else { pubStaffN = 0; renderStaffBadge(); }
+            pollRulesBadge();
             if (!anyTool) closeAdminMenu();
             const picker = $('themePicker');
             picker.classList.toggle('hidden', !can('theme'));
@@ -1749,12 +1754,18 @@
             inboxN = n; renderStaffBadge();
         }
         let inboxN = 0, pubStaffN = 0;
-        function renderStaffBadge() { const b = $('staffBadge'), t = inboxN + pubStaffN; b.textContent = t; b.classList.toggle('hidden', !t); }
+        function renderStaffBadge() { const b = $('staffBadge'), t = inboxN + pubStaffN + (typeof rulesN === 'number' ? rulesN : 0); b.textContent = t; b.classList.toggle('hidden', !t); }
         async function pollPublishBadge() {
             if (!can('publish')) return;
             try { const d = await api('/api/publish-admin/count'); pubStaffN = d.unread; renderStaffBadge(); } catch (e) {}
         }
         setInterval(() => { if (!document.hidden) pollPublishBadge(); }, 60000);
+        let rulesN = 0;
+        async function pollRulesBadge() {
+            if (!isOwner) { rulesN = 0; renderStaffBadge(); return; }
+            try { const d = await api('/api/rules/pending'); rulesN = d.pending ? 1 : 0; renderStaffBadge(); } catch (e) {}
+        }
+        setInterval(() => { if (!document.hidden) pollRulesBadge(); }, 60000);
         async function pollInboxBadge() {
             if (!can('inbox')) return;
             try { const d = await api('/api/inbox'); inboxItems = d.items; setInboxBadge(d.unread); if (!$('inboxModal').classList.contains('hidden')) renderInboxList(); } catch (e) {}
