@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rules &amp; TOS | standy.best</title>
+    <style>:root{--accent:#e4e4e7;--accent-rgb:228 228 231;--accent-mid:#a1a1aa;--accent-dark:#52525b;--soft-rgb:212 212 216;--bg:#050506;--bg2:#0a0a0b}</style>
+    <script src="/theme.js"></script>
+    <script src="/announce.js"></script>
+    <script src="/fx.js" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; }
+        .home { z-index: 40; position: fixed; top: 16px; left: 16px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border: 1px solid rgba(var(--accent-rgb)/0.4); border-radius: 10px; background: #000; color: var(--accent); text-decoration: none; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; transition: all .25s; }
+        .home:hover { background: var(--accent); color: #000; }
+        .wrap { position: relative; z-index: 10; width: 100%; max-width: 780px; margin: 0 auto; padding: 84px 16px 60px; }
+        .card { padding: 24px 26px; border: 1px solid rgba(var(--accent-rgb)/0.3); border-radius: 16px; background: rgba(10,10,12,.88); box-shadow: 0 0 22px rgba(var(--accent-rgb)/0.14); margin-bottom: 16px; }
+        .doc h1 { margin: 26px 0 8px; font-size: 16px; text-transform: uppercase; letter-spacing: .1em; }
+        .doc h1:first-child { margin-top: 0; font-size: clamp(22px, 5vw, 32px); text-align: center; text-shadow: 0 0 12px rgba(var(--accent-rgb)/0.6); }
+        .doc p { margin: 6px 0; font-size: 13px; line-height: 1.75; color: rgb(var(--soft-rgb)); overflow-wrap: anywhere; }
+        .doc ul { margin: 6px 0; padding-left: 20px; }
+        .doc li { font-size: 13px; line-height: 1.75; color: rgb(var(--soft-rgb)); margin: 3px 0; overflow-wrap: anywhere; }
+        .meta { text-align: center; font-size: 11px; opacity: .5; margin: 4px 0 18px; }
+        .bar { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 14px; flex-wrap: wrap; }
+        .btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 10px; cursor: pointer; border: 1px solid rgba(var(--accent-rgb)/0.5); background: #000; color: var(--accent); font: 700 11px 'JetBrains Mono', monospace; letter-spacing: .06em; text-transform: uppercase; }
+        .btn:hover { background: var(--accent); color: #000; }
+        .btn.ok { border-color: rgba(134,239,172,.5); color: #86efac; } .btn.ok:hover { background: #86efac; color: #000; }
+        .btn.no { border-color: rgba(248,113,113,.5); color: #f87171; } .btn.no:hover { background: #f87171; color: #000; }
+        .btn:disabled { opacity: .4; cursor: default; }
+        textarea { width: 100%; min-height: 55vh; padding: 12px; border-radius: 10px; border: 1px solid rgba(var(--accent-rgb)/0.4); background: #000; color: #fff; font: 12.5px/1.6 'JetBrains Mono', monospace; resize: vertical; }
+        textarea:focus { outline: none; border-color: var(--accent); }
+        .hint { font-size: 11px; opacity: .6; margin: 6px 0 10px; line-height: 1.6; }
+        .notice { padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(253,224,71,.4); color: #fde047; background: rgba(253,224,71,.06); font-size: 12px; margin-bottom: 14px; line-height: 1.6; }
+        .notice.bad { border-color: rgba(248,113,113,.4); color: #fca5a5; background: rgba(248,113,113,.06); }
+        .err { color: #f87171; font-size: 12px; margin-top: 8px; }
+        .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; opacity: .65; margin: 0 0 6px; display: block; }
+        .pend { white-space: pre-wrap; padding: 12px; border: 1px dashed rgba(var(--accent-rgb)/0.35); border-radius: 10px; font-size: 12px; line-height: 1.6; max-height: 50vh; overflow-y: auto; overflow-wrap: anywhere; margin-bottom: 10px; }
+        [hidden] { display: none !important; }
+    </style>
+    <link href="/shine.css" rel="stylesheet">
+</head>
+<body>
+    <a class="home" href="/"><i class="fa-solid fa-house"></i> Home</a>
+    <main class="wrap">
+        <div class="bar" id="bar" hidden>
+            <button class="btn" id="editBtn" type="button"><i class="fa-solid fa-pen"></i> Edit rules</button>
+        </div>
+        <div id="notice"></div>
+
+        <div class="card doc" id="view"><p>Loading...</p></div>
+        <div class="meta" id="meta"></div>
+
+        <div class="card" id="editor" hidden>
+            <span class="lbl" id="edLabel">Edit</span>
+            <p class="hint">Plain text. Start a line with <b>#</b> for a heading and <b>-</b> for a bullet. No HTML.</p>
+            <textarea id="ta" maxlength="20000"></textarea>
+            <div class="bar" style="margin:10px 0 0">
+                <button class="btn" id="cancelBtn" type="button">Cancel</button>
+                <button class="btn ok" id="saveBtn" type="button"></button>
+            </div>
+            <div class="err" id="edErr" hidden></div>
+        </div>
+
+        <div class="card" id="review" hidden>
+            <span class="lbl">Pending change <span id="pendBy"></span></span>
+            <div class="pend" id="pendText"></div>
+            <input id="rejNote" maxlength="300" placeholder="Optional note if you reject it" style="width:100%;padding:8px 10px;margin-bottom:10px;border-radius:10px;border:1px solid rgba(228,228,231,.3);background:#000;color:#fff;font:12px 'JetBrains Mono',monospace">
+            <div class="bar" style="margin:0">
+                <button class="btn no" id="rejBtn" type="button"><i class="fa-solid fa-xmark"></i> Reject</button>
+                <button class="btn ok" id="appBtn" type="button"><i class="fa-solid fa-check"></i> Approve &amp; publish</button>
+            </div>
+        </div>
+    </main>
+<script>
+(function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var live = null, pend = null, isOwner = false, canEdit = false;
+    function el(tag, txt) { var e = document.createElement(tag); if (txt !== undefined) e.textContent = txt; return e; }
+    async function api(path, opts) {
+        opts = opts || {};
+        var r = await fetch(path, Object.assign({ credentials: 'same-origin', headers: opts.body ? { 'Content-Type': 'application/json' } : {} }, opts));
+        var d = await r.json().catch(function () { return {}; });
+        if (!r.ok) throw Object.assign(new Error(d.error || 'Request failed'), { status: r.status });
+        return d;
+    }
+    function render(text, box) {            // tiny safe renderer: "# heading", "- bullet", everything else a paragraph. Only textContent is used.
+        box.textContent = '';
+        var ul = null;
+        text.split('\n').forEach(function (line) {
+            var t = line.trim();
+            if (!t) { ul = null; return; }
+            if (/^#+\s*/.test(t)) { ul = null; box.appendChild(el('h1', t.replace(/^#+\s*/, ''))); return; }
+            if (/^[-*•]\s+/.test(t)) { if (!ul) { ul = el('ul'); box.appendChild(ul); } ul.appendChild(el('li', t.replace(/^[-*•]\s+/, ''))); return; }
+            ul = null; box.appendChild(el('p', t));
+        });
+    }
+    function showErr(m) { var e = $('edErr'); e.textContent = m || ''; e.hidden = !m; }
+    async function loadLive() {
+        live = await api('/api/rules');
+        render(live.text, $('view'));
+        $('meta').textContent = live.updatedAt ? 'Last updated ' + new Date(live.updatedAt).toLocaleDateString() + (live.by ? ' by ' + live.by : '') : '';
+    }
+    async function loadPending() {
+        if (!canEdit) return;
+        var d = await api('/api/rules/pending');
+        pend = d.pending; var n = $('notice'); n.textContent = '';
+        $('review').hidden = !(isOwner && pend);
+        if (isOwner && pend) { $('pendBy').textContent = '(proposed by ' + pend.by + ' on ' + new Date(pend.at).toLocaleString() + ')'; $('pendText').textContent = pend.text; }
+        if (!isOwner && pend) { var x = el('div', 'Your change (by ' + pend.by + ') is waiting for the owner to approve it. The public page still shows the old rules.'); x.className = 'notice'; n.appendChild(x); }
+        if (d.rejected) { var y = el('div', 'The owner rejected the last proposed change' + (d.rejected.note ? ': ' + d.rejected.note : '.')); y.className = 'notice bad'; n.appendChild(y); }
+    }
+    $('editBtn').onclick = function () {
+        $('ta').value = (isOwner || !pend) ? live.text : pend.text;
+        $('edLabel').textContent = isOwner ? 'Edit rules (your changes go live immediately)' : 'Edit rules (the owner must approve before it goes live)';
+        $('saveBtn').textContent = isOwner ? 'Publish' : 'Submit for approval';
+        $('editor').hidden = false; $('view').hidden = true; $('editBtn').hidden = true; showErr('');
+    };
+    $('cancelBtn').onclick = function () { $('editor').hidden = true; $('view').hidden = false; $('editBtn').hidden = false; };
+    $('saveBtn').onclick = async function () {
+        showErr(''); $('saveBtn').disabled = true;
+        try {
+            var d = await api('/api/rules/propose', { method: 'POST', body: JSON.stringify({ text: $('ta').value }) });
+            $('cancelBtn').onclick(); await loadLive(); await loadPending();
+            if (!d.published) alert('Submitted. The owner will review it before it goes live.');
+        } catch (e) { showErr(e.message); }
+        $('saveBtn').disabled = false;
+    };
+    async function review(action) {
+        try { await api('/api/rules/review', { method: 'POST', body: JSON.stringify({ action: action, at: pend.at, note: $('rejNote').value }) }); $('rejNote').value = ''; await loadLive(); await loadPending(); }
+        catch (e) { alert(e.message); await loadPending(); }
+    }
+    $('appBtn').onclick = function () { if (confirm('Publish this version of the rules?')) review('approve'); };
+    $('rejBtn').onclick = function () { review('reject'); };
+    (async function init() {
+        try { await loadLive(); } catch (e) { $('view').textContent = 'Could not load the rules.'; }
+        try {
+            var s = await api('/api/session');
+            isOwner = !!s.owner; canEdit = isOwner || (s.permissions || []).indexOf('rules') >= 0;
+            $('bar').hidden = !canEdit;
+            await loadPending();
+        } catch (e) {}
+    })();
+})();
+</script>
+</body>
+</html>
