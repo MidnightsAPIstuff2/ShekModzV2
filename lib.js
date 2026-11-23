@@ -154,6 +154,24 @@ function getDb() {
         data TEXT NOT NULL,
         updated INTEGER NOT NULL
       )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS user_profiles (
+        user_id INTEGER PRIMARY KEY,
+        bio TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT '',
+        pronouns TEXT NOT NULL DEFAULT '',
+        game TEXT NOT NULL DEFAULT '',
+        accent TEXT NOT NULL DEFAULT '',
+        links TEXT NOT NULL DEFAULT '[]',
+        updated INTEGER NOT NULL DEFAULT 0
+      )`);
+      await client.execute(`CREATE TABLE IF NOT EXISTS profile_images (
+        user_id INTEGER NOT NULL,
+        kind TEXT NOT NULL,
+        mime TEXT NOT NULL,
+        data TEXT NOT NULL,
+        updated INTEGER NOT NULL,
+        PRIMARY KEY (user_id, kind)
+      )`);
       await client.execute(`CREATE TABLE IF NOT EXISTS staff_chat (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL DEFAULT 0,
@@ -640,6 +658,30 @@ async function saveImage(db, postId, img) {   // img: parsed image, or null to r
   if (!img) return db.execute({ sql: 'DELETE FROM post_images WHERE post_id = ?', args: [postId] });
   return db.execute({ sql: 'INSERT OR REPLACE INTO post_images (post_id, mime, data, updated) VALUES (?,?,?,?)', args: [postId, img.mime, img.data, Date.now()] });
 }
+
+
+/* ---------- profiles ---------- */
+const PROFILE_LINK_TYPES = { discord: 'text', youtube: 'url', github: 'url', twitter: 'url', website: 'url' };
+const profRate = new Map();
+function profLimited(ip) {
+  const now = Date.now(), rec = (profRate.get(ip) || []).filter((t) => now - t < 3600_000);
+  if (rec.length >= 20) { profRate.set(ip, rec); return true; }
+  rec.push(now); profRate.set(ip, rec); if (profRate.size > 5000) profRate.clear();
+  return false;
+}
+function cleanLinks(v) {
+  const out = [];
+  for (const l of (Array.isArray(v) ? v : []).slice(0, 4)) {
+    if (!l || typeof l !== 'object' || !PROFILE_LINK_TYPES[l.type]) continue;
+    const value = cleanText(l.value, 100).replace(/\n/g, ' ');
+    if (!value) continue;
+    if (PROFILE_LINK_TYPES[l.type] === 'url' && !/^https:\/\/[^\s]+\.[^\s]+$/i.test(value)) return { error: `The ${l.type} link must start with https://` };
+    if (out.some((o) => o.type === l.type)) continue;
+    out.push({ type: l.type, value });
+  }
+  return { links: out };
+}
+const profImg = (id, kind, v) => v ? `/api/profiles/${encodeURIComponent(id)}/${kind}?v=${Number(v)}` : null;
 
 /* ---------- API handler ---------- */
 async function handleApi(req, res) {
@@ -1535,6 +1577,86 @@ async function handleApi(req, res) {
     if (a && a.banned) { send(res, 403, { error: banMessage(a.banned), banned: a.banned }); return true; }
     return false;
   };
+
+  /* ----- profiles ----- */
+  const pf = pathname.match(/^\/api\/profiles\/([^/]+)(?:\/(avatar|banner|reset))?$/);
+  if (pf) {
+    const uname = decodeURIComponent(pf[1]).trim().toLowerCase().slice(0, 40);
+    const db = await getDb();
+    const urow = (await db.execute({ sql: 'SELECT id, username, role, created_at FROM users WHERE username_lower = ?', args: [uname] })).rows[0];
+    if (!urow) return send(res, 404, { error: 'No account with that name.' });
+    const uid = Number(urow.id);
+    if ((pf[2] === 'avatar' || pf[2] === 'banner') && method === 'GET') {
+      const r = await db.execute({ sql: 'SELECT mime, data FROM profile_images WHERE user_id = ? AND kind = ?', args: [uid, pf[2]] });
+      if (!r.rows.length) return send(res, 404, { error: 'No image.' });
+      res.statusCode = 200;
+      res.setHeader('Content-Type', String(r.rows[0].mime));
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.end(Buffer.from(String(r.rows[0].data), 'base64'));
+    }
+    if (!pf[2] && method === 'GET') {
+      if (await lockedOut()) return;
+      const prof = (await db.execute({ sql: 'SELECT * FROM user_profiles WHERE user_id = ?', args: [uid] })).rows[0] || {};
+      const imgs = (await db.execute({ sql: 'SELECT kind, updated FROM profile_images WHERE user_id = ?', args: [uid] })).rows;
+      const iv = (k) => { const r = imgs.find((x) => x.kind === k); return r ? Number(r.updated) : 0; };
+      let links = []; try { links = JSON.parse(prof.links || '[]'); } catch { /* none */ }
+      const mods = (await db.execute({ sql: POST_SELECT + " WHERE lower(p.author) = ? AND p.status != 'Soon' ORDER BY p.id DESC LIMIT 60", args: [uname] })).rows.map(rowToPost);
+      const allMods = Number((await db.execute({ sql: 'SELECT COUNT(*) AS n FROM posts WHERE lower(author) = ?', args: [uname] })).rows[0].n);
+      const role = ROLES[urow.role] ? urow.role : 'member';
+      return send(res, 200, {
+        username: urow.username, role, roleLabel: ROLES[role].label, joined: String(urow.created_at || ''),
+        bio: prof.bio || '', status: prof.status || '', pronouns: prof.pronouns || '', game: prof.game || '', accent: prof.accent || '', links,
+        avatar: profImg(urow.username, 'avatar', iv('avatar')), banner: profImg(urow.username, 'banner', iv('banner')),
+        stats: { mods: allMods, downloads: mods.reduce((a, m) => a + (m.downloads || 0), 0) },
+        mods: mods.map((m) => ({ id: m.id, title: m.title, status: m.status, downloads: m.downloads, image: m.image })),
+      });
+    }
+    if (pf[2] === 'reset' && method === 'POST') {      // staff clean-up of an inappropriate profile
+      const auth = await getAuth(req);
+      if (!requirePerm(res, auth, 'delete')) return;
+      if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+      await db.execute({ sql: 'DELETE FROM user_profiles WHERE user_id = ?', args: [uid] });
+      await db.execute({ sql: 'DELETE FROM profile_images WHERE user_id = ?', args: [uid] });
+      return send(res, 200, { ok: true });
+    }
+    return send(res, 405, { error: 'Method not allowed.' });
+  }
+
+  if (pathname === '/api/profile' && method === 'PUT') {        // you edit your own profile
+    const auth = await getAuth(req);
+    if (!auth || !auth.user) return send(res, 401, { error: 'Log in to edit your profile.' });
+    if (auth.banned) return send(res, 403, { error: banMessage(auth.banned), banned: auth.banned });
+    if (badOrigin(req)) return send(res, 403, { error: 'Bad origin.' });
+    if (profLimited(ip)) return send(res, 429, { error: 'You have saved a lot of times. Try again in a while.' });
+    let body; try { body = await readJson(req, 1_600_000); } catch { return send(res, 400, { error: 'Bad request, or the pictures are too big.' }); }
+    const uid = Number(auth.user.id);
+    const accent = typeof body.accent === 'string' && /^#[0-9a-f]{6}$/i.test(body.accent.trim()) ? body.accent.trim().toLowerCase() : '';
+    const L = cleanLinks(body.links);
+    if (L.error) return send(res, 400, { error: L.error });
+    const oneLine = (v, n) => cleanText(v, n).replace(/\n/g, ' ');
+    const db = await getDb(), now = Date.now();
+    const imgs = {};
+    for (const kind of ['avatar', 'banner']) {
+      if (body[kind] === undefined) continue;
+      if (body[kind] === null) { imgs[kind] = null; continue; }
+      const im = parseImage(body[kind]);
+      if (!im) return send(res, 400, { error: `That ${kind} is not a valid picture (jpg, png or webp, smaller than ~450 KB).` });
+      imgs[kind] = im;
+    }
+    await db.execute({
+      sql: `INSERT INTO user_profiles (user_id, bio, status, pronouns, game, accent, links, updated) VALUES (?,?,?,?,?,?,?,?)
+            ON CONFLICT(user_id) DO UPDATE SET bio=excluded.bio, status=excluded.status, pronouns=excluded.pronouns, game=excluded.game, accent=excluded.accent, links=excluded.links, updated=excluded.updated`,
+      args: [uid, cleanText(body.bio, 400), oneLine(body.status, 80), oneLine(body.pronouns, 20), oneLine(body.game, 40), accent, JSON.stringify(L.links), now],
+    });
+    for (const kind of Object.keys(imgs)) {
+      if (imgs[kind] === null) await db.execute({ sql: 'DELETE FROM profile_images WHERE user_id = ? AND kind = ?', args: [uid, kind] });
+      else await db.execute({ sql: 'INSERT OR REPLACE INTO profile_images (user_id, kind, mime, data, updated) VALUES (?,?,?,?,?)', args: [uid, kind, imgs[kind].mime, imgs[kind].data, now] });
+    }
+    return send(res, 200, { ok: true });
+  }
+
   if (pathname === '/api/posts' && method === 'GET') {
     if (await lockedOut()) return;
     const db = await getDb();
