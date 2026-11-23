@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile | standy.best</title>
+    <style>:root{--accent:#e4e4e7;--accent-rgb:228 228 231;--accent-mid:#a1a1aa;--accent-dark:#52525b;--soft-rgb:212 212 216;--bg:#050506;--bg2:#0a0a0b}</style>
+    <script src="/theme.js"></script>
+    <script src="/announce.js"></script>
+    <script src="/fx.js" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--accent); font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; }
+        .home { z-index: 40; position: fixed; top: 16px; left: 16px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border: 1px solid rgba(var(--accent-rgb)/0.4); border-radius: 10px; background: #000; color: var(--accent); text-decoration: none; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; transition: all .25s; }
+        .home:hover { background: var(--accent); color: #000; }
+        .wrap { position: relative; z-index: 10; width: 100%; max-width: 860px; margin: 0 auto; padding: 76px 16px 60px; }
+        #prof { --pa: #e4e4e7; }
+        .card { border: 1px solid rgba(var(--accent-rgb)/0.3); border-radius: 16px; background: rgba(10,10,12,.92); overflow: hidden; margin-bottom: 16px; }
+        .banner { height: 170px; background: linear-gradient(135deg, var(--pa), #000 80%); background-size: cover; background-position: center; opacity: .95; }
+        .head { position: relative; padding: 0 22px 18px; }
+        .av { width: 104px; height: 104px; margin-top: -52px; border-radius: 50%; border: 4px solid #0a0a0c; background: var(--pa); color: #000; display: flex; align-items: center; justify-content: center; font-size: 42px; font-weight: 700; overflow: hidden; box-shadow: 0 0 0 2px var(--pa); }
+        .av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .name { margin: 12px 0 2px; font-size: 22px; font-weight: 700; overflow-wrap: anywhere; }
+        .role { display: inline-block; padding: 2px 10px; border-radius: 99px; border: 1px solid var(--pa); color: var(--pa); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; vertical-align: middle; margin-left: 6px; }
+        .pron { font-size: 12px; opacity: .6; }
+        .status { margin-top: 6px; font-size: 13px; color: var(--pa); overflow-wrap: anywhere; }
+        .bio { margin: 14px 0 0; font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; color: rgb(var(--soft-rgb)); }
+        .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+        .links a, .links span { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 10px; border: 1px solid rgba(var(--accent-rgb)/0.3); color: var(--accent); font-size: 12px; text-decoration: none; overflow-wrap: anywhere; }
+        .links a:hover { border-color: var(--pa); color: var(--pa); }
+        .stats { display: flex; gap: 0; border-top: 1px solid rgba(var(--accent-rgb)/0.15); }
+        .stat { flex: 1; padding: 12px 8px; text-align: center; border-right: 1px solid rgba(var(--accent-rgb)/0.15); }
+        .stat:last-child { border-right: 0; }
+        .stat b { display: block; font-size: 17px; color: var(--pa); }
+        .stat span { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; opacity: .55; }
+        .acts { position: absolute; top: 12px; right: 16px; display: flex; gap: 8px; }
+        .btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 10px; cursor: pointer; border: 1px solid rgba(var(--accent-rgb)/0.5); background: rgba(0,0,0,.75); color: var(--accent); font: 700 11px 'JetBrains Mono', monospace; letter-spacing: .06em; text-transform: uppercase; }
+        .btn:hover { background: var(--accent); color: #000; }
+        .btn.ok { border-color: rgba(134,239,172,.5); color: #86efac; } .btn.ok:hover { background: #86efac; color: #000; }
+        .btn.no { border-color: rgba(248,113,113,.5); color: #f87171; } .btn.no:hover { background: #f87171; color: #000; }
+        .btn:disabled { opacity: .4; cursor: default; }
+        h2 { margin: 22px 4px 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; }
+        .mods { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+        .mod { display: block; padding: 0; border: 1px solid rgba(var(--accent-rgb)/0.25); border-radius: 14px; background: rgba(10,10,12,.92); color: var(--accent); text-decoration: none; overflow: hidden; }
+        .mod:hover { border-color: var(--pa); }
+        .mod img { width: 100%; height: 110px; object-fit: cover; display: block; }
+        .mod div { padding: 10px 12px; font-size: 12px; }
+        .mod b { display: block; margin-bottom: 4px; overflow-wrap: anywhere; }
+        .mod small { opacity: .6; font-size: 10px; }
+        .empty { padding: 30px 10px; text-align: center; font-size: 12px; opacity: .55; }
+        /* editor */
+        .ed { padding: 20px 22px; }
+        .ed label { display: block; margin: 12px 0 5px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; opacity: .7; }
+        .field { width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid rgba(var(--accent-rgb)/0.35); background: #000; color: #fff; font: 12px 'JetBrains Mono', monospace; }
+        .field:focus { outline: none; border-color: var(--pa); }
+        textarea.field { min-height: 90px; resize: vertical; }
+        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        @media (max-width: 600px) { .row2 { grid-template-columns: 1fr; } .banner { height: 120px; } }
+        .sw { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .sw button { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+        .sw button.on { border-color: #fff; box-shadow: 0 0 0 2px #000 inset; }
+        .sw input[type=color] { width: 36px; height: 30px; border: 1px solid rgba(var(--accent-rgb)/0.4); background: #000; border-radius: 8px; padding: 2px; cursor: pointer; }
+        .imgrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .imgrow small { opacity: .55; font-size: 10px; }
+        .lk { display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 6px; }
+        .err { margin-top: 10px; color: #f87171; font-size: 12px; }
+        [hidden] { display: none !important; }
+    </style>
+    <link href="/shine.css" rel="stylesheet">
+</head>
+<body>
+    <a class="home" href="/"><i class="fa-solid fa-house"></i> Home</a>
+    <main class="wrap">
+        <div id="msg" class="empty" hidden></div>
+        <div id="prof" hidden>
+            <div class="card">
+                <div class="banner" id="banner"></div>
+                <div class="head">
+                    <div class="acts" id="acts" hidden>
+                        <button class="btn" id="editBtn" type="button"><i class="fa-solid fa-pen"></i> Edit profile</button>
+                        <button class="btn no" id="resetBtn" type="button" hidden><i class="fa-solid fa-eraser"></i> Reset</button>
+                    </div>
+                    <div class="av" id="av"></div>
+                    <div class="name"><span id="uname"></span><span class="role" id="role"></span></div>
+                    <div class="pron" id="pron"></div>
+                    <div class="status" id="status"></div>
+                    <p class="bio" id="bio"></p>
+                    <div class="links" id="links"></div>
+                </div>
+                <div class="stats">
+                    <div class="stat"><b id="sMods">0</b><span>Mods</span></div>
+                    <div class="stat"><b id="sDl">0</b><span>Downloads</span></div>
+                    <div class="stat"><b id="sJoin">-</b><span>Joined</span></div>
+                </div>
+            </div>
+
+            <div class="card ed" id="editor" hidden>
+                <b style="font-size:13px;text-transform:uppercase">Customize your profile</b>
+                <label>Profile picture</label>
+                <div class="imgrow"><input type="file" id="avFile" accept="image/png,image/jpeg,image/webp"><button class="btn no" id="avRm" type="button">Remove</button><small>Square works best</small></div>
+                <label>Banner</label>
+                <div class="imgrow"><input type="file" id="bnFile" accept="image/png,image/jpeg,image/webp"><button class="btn no" id="bnRm" type="button">Remove</button><small>Wide image, about 3:1</small></div>
+                <label>Accent color</label>
+                <div class="sw" id="sw"></div>
+                <div class="row2">
+                    <div><label>Status line</label><input class="field" id="fStatus" maxlength="80" placeholder="What are you up to?"></div>
+                    <div><label>Pronouns</label><input class="field" id="fPron" maxlength="20" placeholder="optional"></div>
+                </div>
+                <label>Favorite game</label><input class="field" id="fGame" maxlength="40" placeholder="optional">
+                <label>About me (<span id="bioN">0</span>/400)</label>
+                <textarea class="field" id="fBio" maxlength="400" placeholder="Tell people about yourself and your mods..."></textarea>
+                <label>Links (https links only; Discord is just your tag)</label>
+                <div id="lkBox"></div>
+                <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+                    <button class="btn" id="cancelBtn" type="button">Cancel</button>
+                    <button class="btn ok" id="saveBtn" type="button">Save profile</button>
+                </div>
+                <div class="err" id="err" hidden></div>
+            </div>
+
+            <h2>Mods by <span id="uname2"></span></h2>
+            <div class="mods" id="mods"></div>
+        </div>
+    </main>
+<script>
+(function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var name = decodeURIComponent((location.pathname.split('/')[2] || '')).trim();
+    var data = null, me = null, perms = [], isOwner = false;
+    var PALETTE = ['#e4e4e7', '#7dd3fc', '#a78bfa', '#f472b6', '#fb7185', '#fb923c', '#facc15', '#4ade80', '#2dd4bf'];
+    var LINKS = [['discord', 'Discord tag', 'fa-brands fa-discord', 'yourname'], ['youtube', 'YouTube', 'fa-brands fa-youtube', 'https://youtube.com/@you'], ['github', 'GitHub', 'fa-brands fa-github', 'https://github.com/you'], ['twitter', 'X / Twitter', 'fa-brands fa-x-twitter', 'https://x.com/you'], ['website', 'Website', 'fa-solid fa-globe', 'https://']];
+    var edit = { accent: '', avatar: undefined, banner: undefined };
+    function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
+    async function api(path, opts) {
+        opts = opts || {};
+        var r = await fetch(path, Object.assign({ credentials: 'same-origin', headers: opts.body ? { 'Content-Type': 'application/json' } : {} }, opts));
+        var d = await r.json().catch(function () { return {}; });
+        if (!r.ok) throw Object.assign(new Error(d.error || 'Request failed'), { status: r.status });
+        return d;
+    }
+    function setAccent(c) { $('prof').style.setProperty('--pa', /^#[0-9a-f]{6}$/i.test(c || '') ? c : '#e4e4e7'); }
+    function render() {
+        var d = data; document.title = d.username + ' | standy.best';
+        $('uname').textContent = d.username; $('uname2').textContent = d.username; $('role').textContent = d.roleLabel; $('role').hidden = d.role === 'member';
+        $('pron').textContent = [d.pronouns, d.game ? 'Plays ' + d.game : ''].filter(Boolean).join(' · ');
+        $('status').textContent = d.status; $('bio').textContent = d.bio; $('bio').hidden = !d.bio;
+        setAccent(d.accent);
+        $('banner').style.backgroundImage = d.banner ? 'url("' + d.banner + '")' : '';
+        var av = $('av'); av.textContent = '';
+        if (d.avatar) { var im = el('img'); im.src = d.avatar; im.alt = ''; av.appendChild(im); } else av.textContent = d.username.charAt(0).toUpperCase();
+        var lb = $('links'); lb.textContent = '';
+        d.links.forEach(function (l) {
+            var meta = LINKS.filter(function (x) { return x[0] === l.type; })[0]; if (!meta) return;
+            var node;
+            if (l.type === 'discord') { node = el('span'); node.appendChild(el('i', meta[2])); node.appendChild(document.createTextNode(' ' + l.value)); }
+            else if (/^https:\/\//i.test(l.value)) { node = el('a'); node.href = l.value; node.target = '_blank'; node.rel = 'noopener noreferrer nofollow ugc'; node.appendChild(el('i', meta[2])); node.appendChild(document.createTextNode(' ' + meta[1])); }
+            else return;
+            lb.appendChild(node);
+        });
+        $('sMods').textContent = d.stats.mods; $('sDl').textContent = Number(d.stats.downloads).toLocaleString(); $('sJoin').textContent = d.joined || '-';
+        var mb = $('mods'); mb.textContent = '';
+        if (!d.mods.length) mb.appendChild(el('div', 'empty', 'No mods posted yet.'));
+        d.mods.forEach(function (m) {
+            var a = el('a', 'mod'); a.href = '/mod/' + m.id;
+            if (m.image) { var i = el('img'); i.src = m.image; i.alt = ''; i.loading = 'lazy'; a.appendChild(i); }
+            var b = el('div'); b.appendChild(el('b', '', m.title)); b.appendChild(el('small', '', m.status + ' · ' + Number(m.downloads || 0).toLocaleString() + ' downloads')); a.appendChild(b); mb.appendChild(a);
+        });
+    }
+    /* ---- editor ---- */
+    function swatches() {
+        var box = $('sw'); box.textContent = '';
+        PALETTE.forEach(function (c) { var b = el('button', edit.accent === c ? 'on' : ''); b.type = 'button'; b.style.background = c; b.title = c; b.onclick = function () { edit.accent = c; setAccent(c); swatches(); }; box.appendChild(b); });
+        var ci = el('input'); ci.type = 'color'; ci.value = /^#[0-9a-f]{6}$/i.test(edit.accent) ? edit.accent : '#e4e4e7'; ci.title = 'Custom color';
+        ci.oninput = function () { edit.accent = ci.value; setAccent(ci.value); }; box.appendChild(ci);
+    }
+    function lkRows() {
+        var box = $('lkBox'); box.textContent = '';
+        LINKS.forEach(function (m) {
+            var cur = data.links.filter(function (l) { return l.type === m[0]; })[0];
+            var row = el('div', 'lk'); row.appendChild(el('span', '', m[1])); row.firstChild.style.cssText = 'font-size:11px;opacity:.7;align-self:center';
+            var inp = el('input', 'field'); inp.maxLength = 100; inp.placeholder = m[3]; inp.dataset.type = m[0]; inp.value = cur ? cur.value : ''; row.appendChild(inp); box.appendChild(row);
+        });
+    }
+    function resize(file, w, h, cb) {             // center-crop to w x h and re-encode small
+        var url = URL.createObjectURL(file), img = new Image();
+        img.onload = function () {
+            var c = document.createElement('canvas'); c.width = w; c.height = h; var x = c.getContext('2d');
+            var s = Math.max(w / img.width, h / img.height), dw = img.width * s, dh = img.height * s;
+            x.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh); URL.revokeObjectURL(url);
+            var out = c.toDataURL('image/webp', 0.85); if (out.indexOf('data:image/webp') !== 0) out = c.toDataURL('image/jpeg', 0.85);
+            cb(out);
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); showErr('That file is not a usable picture.'); };
+        img.src = url;
+    }
+    function showErr(m) { var e = $('err'); e.textContent = m || ''; e.hidden = !m; }
+    function openEditor() {
+        edit = { accent: data.accent || '', avatar: undefined, banner: undefined };
+        $('fStatus').value = data.status; $('fPron').value = data.pronouns; $('fGame').value = data.game; $('fBio').value = data.bio; $('bioN').textContent = data.bio.length;
+        swatches(); lkRows(); showErr(''); $('editor').hidden = false; $('editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    $('fBio').oninput = function () { $('bioN').textContent = this.value.length; };
+    $('avFile').onchange = function () { var f = this.files[0]; if (!f) return; resize(f, 256, 256, function (u) { edit.avatar = u; data.avatar = u; render(); }); };
+    $('bnFile').onchange = function () { var f = this.files[0]; if (!f) return; resize(f, 1000, 330, function (u) { edit.banner = u; data.banner = u; render(); }); };
+    $('avRm').onclick = function () { edit.avatar = null; data.avatar = null; $('avFile').value = ''; render(); };
+    $('bnRm').onclick = function () { edit.banner = null; data.banner = null; $('bnFile').value = ''; render(); };
+    $('cancelBtn').onclick = function () { $('editor').hidden = true; load(); };
+    $('saveBtn').onclick = async function () {
+        showErr(''); $('saveBtn').disabled = true;
+        var links = []; document.querySelectorAll('#lkBox input').forEach(function (i) { if (i.value.trim()) links.push({ type: i.dataset.type, value: i.value.trim() }); });
+        var body = { bio: $('fBio').value, status: $('fStatus').value, pronouns: $('fPron').value, game: $('fGame').value, accent: edit.accent, links: links };
+        if (edit.avatar !== undefined) body.avatar = edit.avatar; if (edit.banner !== undefined) body.banner = edit.banner;
+        try { await api('/api/profile', { method: 'PUT', body: JSON.stringify(body) }); $('editor').hidden = true; await load(); }
+        catch (e) { showErr(e.message); }
+        $('saveBtn').disabled = false;
+    };
+    $('editBtn').onclick = openEditor;
+    $('resetBtn').onclick = async function () {
+        if (!confirm('Clear this profile (picture, banner, bio, links)?')) return;
+        try { await api('/api/profiles/' + encodeURIComponent(name) + '/reset', { method: 'POST' }); await load(); } catch (e) { alert(e.message); }
+    };
+    async function load() {
+        try { data = await api('/api/profiles/' + encodeURIComponent(name)); }
+        catch (e) { $('prof').hidden = true; $('msg').hidden = false; $('msg').textContent = e.status === 404 ? 'No account with that name.' : e.message; return; }
+        $('msg').hidden = true; $('prof').hidden = false; render();
+        var mine = me && me.username.toLowerCase() === data.username.toLowerCase();
+        $('editBtn').hidden = !mine; $('resetBtn').hidden = mine || !(isOwner || perms.indexOf('delete') >= 0);
+        $('acts').hidden = $('editBtn').hidden && $('resetBtn').hidden;
+    }
+    (async function () {
+        if (!name) { $('msg').hidden = false; $('msg').textContent = 'No profile selected.'; return; }
+        try { var s = await api('/api/session'); me = s.user; isOwner = !!s.owner; perms = s.permissions || []; } catch (e) {}
+        load();
+    })();
+})();
+</script>
+</body>
+</html>
