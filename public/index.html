@@ -166,6 +166,7 @@
                     <div id="adminBadge" class="hidden items-center gap-2 px-3 py-1 bg-white/10 border border-white/40 rounded-full text-xs font-mono glow-box-sm">
                         <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
                         <span id="whoLabel" class="text-white font-bold tracking-wider truncate max-w-[12rem]"></span>
+                        <a id="profileLink" href="#" title="My profile" class="hidden ml-2 text-soft/60 hover:text-white"><i class="fa-solid fa-circle-user"></i></a>
                         <button onclick="logout()" title="Log out" class="ml-2 text-soft/60 hover:text-white"><i class="fa-solid fa-right-from-bracket"></i></button>
                     </div>
 
@@ -894,6 +895,9 @@
             const badge = $('adminBadge');
             badge.classList.toggle('hidden', !loggedIn);
             badge.classList.toggle('flex', loggedIn);
+            const pl = $('profileLink');
+            pl.classList.toggle('hidden', !me);
+            if (me) pl.href = '/u/' + encodeURIComponent(me.username);
             $('whoLabel').textContent = isOwner ? 'OWNER' : me ? me.username + ' \u00b7 ' + me.roleLabel : '';
             $('openAuthBtn').classList.toggle('hidden', loggedIn);
             $('createPostBtn').classList.toggle('hidden', !can('post'));
